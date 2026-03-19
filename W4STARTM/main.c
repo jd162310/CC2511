@@ -42,6 +42,11 @@ int execute_n_steps(int steps) {
     send_pulse_to_stepper();
   }
 }
+
+// function to set the direction of the stepper motor
+int set_stepper_direction(bool forward) {
+  gpio_put(DIR, forward); // sets direction forward or backward based on user input
+}
 int main(void) {
 
   stdio_init_all(); 
@@ -68,6 +73,14 @@ int main(void) {
           case 'j':
           case 'J':
           execute_n_steps(200);
+          break;
+          case 'd':
+          case 'D':
+          set_stepper_direction(true);
+          break;
+          case 'a':
+          case 'A':
+          set_stepper_direction(false);
           break;
           default:
           printf("Invalid inout");
