@@ -17,7 +17,7 @@ int high_delay_us = 1000; // microseconds
 int low_delay_us = 1000; // microseconds 
 
 // Function for pin initialization
-int init_stepper_pins() {
+void init_stepper_pins() {
   // set the pins to output
   gpio_init(ENABLE);
   gpio_set_dir(ENABLE, GPIO_OUT);
@@ -29,7 +29,7 @@ int init_stepper_pins() {
 }
 
 // Function to send pulse signal to stepper motor
-int send_pulse_to_stepper() {
+void send_pulse_to_stepper() {
   gpio_put(STEP, 1); // Step
   sleep_us(high_delay_us); // Short delay
   gpio_put(STEP, 0); // Clear step
@@ -37,14 +37,14 @@ int send_pulse_to_stepper() {
 }
 
 // Function to execute a number of steps
-int execute_n_steps(int steps) {
+void execute_n_steps(int steps) {
   for (int i = 0; i < steps; i++) {
     send_pulse_to_stepper();
   }
 }
 
 // function to set the direction of the stepper motor
-int set_stepper_direction(bool forward) {
+void set_stepper_direction(bool forward) {
   gpio_put(DIR, forward); // sets direction forward or backward based on user input
 }
 int main(void) {
