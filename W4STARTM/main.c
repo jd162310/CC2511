@@ -10,9 +10,12 @@
 
 // global variables
 // Define pins
-  #define STEP 14
-  #define DIR 15
+  #define STEP 5
+  #define DIR 6
   #define ENABLE 22
+  #define Mode0 2
+  #define Mode1 3
+  #define Mode2 4
 int high_delay_us = 1000; // microseconds
 int low_delay_us = 1000; // microseconds 
 
