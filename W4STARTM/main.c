@@ -9,19 +9,19 @@
 #include <stdio.h>
 
 // global variables
-int high_delay_us = 1; // microseconds
-int low_delay_us = 1; // microseconds 
-
-// Function for pin initialization
-int init_stepper_pins() {
-  // Define pins
+// Define pins
   #define STEP 14
   #define DIR 15
   #define ENABLE 22
+int high_delay_us = 1000; // microseconds
+int low_delay_us = 1000; // microseconds 
+
+// Function for pin initialization
+int init_stepper_pins() {
   // set the pins to output
   gpio_init(ENABLE);
   gpio_set_dir(ENABLE, GPIO_OUT);
-  gpio_put(ENABLE, 1);
+  gpio_put(ENABLE, 0);
   gpio_init(STEP);
   gpio_init(DIR);
   gpio_set_dir(STEP, GPIO_OUT);
