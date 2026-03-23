@@ -28,6 +28,9 @@
 int high_delay_us = 1000; // microseconds
 int low_delay_us = 1000; // microseconds
 
+// axis selection variable
+char axis_selection = 'x'; // default to x-axis
+
 // Function for pin initialization
 void init_stepper_pins() {
   // set the pins to output
@@ -64,21 +67,43 @@ void init_stepper_pins() {
 }
 
 // Function to send pulse signal to stepper motor
-void send_pulse_to_stepper() {
+void send_pulse_to_stepperx() {
   gpio_put(X_STEP, 1); 
-  gpio_put(Y_STEP, 1);
-  gpio_put(Z_STEP, 1);
   sleep_us(high_delay_us); 
   gpio_put(X_STEP, 0);
-  gpio_put(Y_STEP, 0);
-  gpio_put(Z_STEP, 0); 
-  sleep_us(low_delay_us); 
+  sleep_us(low_delay_us);
 }
+void send_pulse_to_steppery() {
+  gpio_put(Y_STEP, 1);
+  sleep_us(high_delay_us);
+  gpio_put(Y_STEP, 0);
+  sleep_us(low_delay_us);
+}
+void send_pulse_to_stepperz() {
+  gpio_put(Z_STEP, 1);
+  sleep_us(high_delay_us); 
+  gpio_put(Z_STEP, 0); 
+  sleep_us(low_delay_us);
+}  
 
 // Function to execute a number of steps
 void execute_n_steps(int steps) {
   for (int i = 0; i < steps; i++) {
-    send_pulse_to_stepper();
+    switch (axis_selection) {
+      case 'x':
+      case 'X':
+        send_pulse_to_stepperx();
+        break;
+      case 'y':
+      case 'Y':
+        send_pulse_to_steppery();
+        break;
+      case 'z':
+      case 'Z':
+        send_pulse_to_stepperz();
+        break;
+    } 
+    
   }
 }
 
@@ -100,6 +125,7 @@ void set_microstepping_mode(int mode) {
       gpio_put(Y_Mode0, 0);
       gpio_put(Y_Mode1, 0);
       gpio_put(Y_Mode2, 0);
+      printf("Mode set: %d\n", mode);
       break;
     case 2: // half step
       gpio_put(X_Mode0, 1);
@@ -108,6 +134,7 @@ void set_microstepping_mode(int mode) {
       gpio_put(Y_Mode0, 1);
       gpio_put(Y_Mode1, 0);
       gpio_put(Y_Mode2, 0);
+      printf("Mode set: %d\n", mode);
       break;
     case 4: // quarter step
       gpio_put(X_Mode0, 0);
@@ -116,6 +143,7 @@ void set_microstepping_mode(int mode) {
       gpio_put(Y_Mode0, 0);
       gpio_put(Y_Mode1, 1);
       gpio_put(Y_Mode2, 0);
+      printf("Mode set: %d\n", mode);
       break;
     case 8: // eighth step
       gpio_put(X_Mode0, 1);
@@ -124,6 +152,7 @@ void set_microstepping_mode(int mode) {
       gpio_put(Y_Mode0, 1);
       gpio_put(Y_Mode1, 1);
       gpio_put(Y_Mode2, 0);
+      printf("Mode set: %d\n", mode);
       break;
     case 16: // sixteenth step
       gpio_put(X_Mode0, 1);
@@ -132,6 +161,7 @@ void set_microstepping_mode(int mode) {
       gpio_put(Y_Mode0, 1);
       gpio_put(Y_Mode1, 1);
       gpio_put(Y_Mode2, 1);
+      printf("Mode set: %d\n", mode);
       break;
     case 32: // thirty-second step
       gpio_put(X_Mode0, 1);
@@ -140,6 +170,7 @@ void set_microstepping_mode(int mode) {
       gpio_put(Y_Mode0, 1);
       gpio_put(Y_Mode1, 0);
       gpio_put(Y_Mode2, 1);
+      printf("Mode set: %d\n", mode);
       break;    
       default:
       printf("Invalid microstepping mode");
@@ -198,11 +229,18 @@ int main(void) {
           case '5':
           set_microstepping_mode(32);
           break;
+          case 'x':
+          case 'X':
+          case 'y':
+          case 'Y':
+          case 'z':
+          case 'Z':
+          axis_selection = c;
+          printf("Axis selected: %c\n", axis_selection);
+          break;
           default:
-          printf("Invalid inout");
+          printf("Invalid input");
       }
-      
-
   }
 }
   return 0;
