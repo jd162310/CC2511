@@ -7,6 +7,7 @@
 #include "pico/stdlib.h"
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 // global variables
 // Define pins
@@ -57,6 +58,15 @@ void process_input() {
       buffer_index--; // moves index back to remove last character
       commend_buffer[buffer_index] = '\0'; // null-terminate the string after backspace
   }
+}
+void process_commend() {
+  char commend[10]; // array to store the commend
+  int value; // variable to store the value from the commend
+  // uses sscanf to parse the commend and value from the buffer 
+  int count = sscanf(commend_buffer, "%s %d", commend, &value); 
+
+  // checks if the commend is valid
+  
 }
 // Function for pin initialization
 void init_stepper_pins() {
@@ -212,6 +222,13 @@ int main(void) {
   while (true) {
     // function call to process user input
     process_input();
+    // checks if command is complete
+    if (command_complete) {
+      process_commend(); // function call to process the commend
+      // reset buffer and index for next command
+      buffer_index = 0;
+      command_complete = false;
+    }
     // obtains user input
     int c = getchar_timeout_us(0);
     if (c != PICO_ERROR_TIMEOUT) {
