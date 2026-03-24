@@ -37,12 +37,18 @@ char axis_selection = 'x'; // default to x-axis
 char commend_buffer[buffer_size]; // array to store characters from user input
 int buffer_index = 0; // index to keep track of position in buffer
 bool command_complete = false; // flag to indicate when a command is complete
+// global variable for mircostepping mode
+int mode = 1; // defaults to full step mode
+// glodal variable for number of steps
+int steps = 0; // defaults to 0 steps
+// global variable for direction
+bool forward = true; // defaults to forward direction
 
 // function to process user inputs into the buffer array
 void process_input() {
   int c = getchar_timeout_us(0);
-  if (c != PICO_ERROR_TIMEOUT)
-  return;
+  if (c != PICO_ERROR_TIMEOUT) {
+    // process the input character
   // when enter is presses
   if (c == '\n' || c == '\r') {
     commend_buffer[buffer_index] = '\0'; // creates a C string
@@ -52,11 +58,13 @@ void process_input() {
     // adds input into buffer
     if (buffer_index < buffer_size - 1) {
       commend_buffer[buffer_index++] = c; // adds character to buffer and increments index
+      printf("%c", c); 
   }
     // code to handle backspace input
     if (c == '\b' && buffer_index > 0) {
       buffer_index--; // moves index back to remove last character
       commend_buffer[buffer_index] = '\0'; // null-terminate the string after backspace
+    }
   }
 }
 void process_commend() {
@@ -64,9 +72,49 @@ void process_commend() {
   int value; // variable to store the value from the commend
   // uses sscanf to parse the commend and value from the buffer 
   int count = sscanf(commend_buffer, "%s %d", commend, &value); 
+  // checks if the commend calue is valid
+  if (value < 0 || value > 1000) {
+    printf("Invalid value: %d. Value must be between 0 and 1000.\n", value);
+    return;
+  }
 
-  // checks if the commend is valid
-  
+  // checks if the commend is valid and executes the corresponding action
+  if (count >= 1) {
+    if (strcmp(commend, "delay") == 0 && count == 2) {
+      high_delay_us = value; // sets the high delay to the value from the commend
+      low_delay_us = value; // sets the low delay to the value from the commend
+      printf("Delay set to: %d microseconds\n", value);
+    } else if (strcmp(commend, "axis") == 0 && count == 2) {
+      axis_selection = value; // sets the axis selection to the value from the commend
+      printf("Axis selected: %c\n", axis_selection);
+    } else if (strcmp(commend, "mode") == 0 && count == 2) {
+      mode = value; // sets the mircostepping mode to the value from the commend
+      printf("Microstepping mode set to: %d\n", mode);
+    } else if (strcmp(commend, "fwd") == 0) {
+      forward = true; // sets the direction to forward
+      printf("Direction set to forward\n");
+      steps = value; // sets the number of steps to execute to the value from the commend
+      printf("Executed %d steps\n", value);
+    } else if (strcmp(commend, "rev") == 0) {
+      forward = false; // sets the direction to reverse
+      printf("Direction set to reverse\n");
+      steps = value; // sets the number of steps to execute to the value from the commend
+      printf("Executed %d steps\n", value);
+    } else if (strcmp(commend, "help") == 0) {                             
+      printf("Available commands:\n");
+      printf("delay <value> - Set the delay for pulse timing in microseconds\n");
+      printf("axis <x/y/z> - Select the axis to control (x, y, or z)\n");
+      printf("mode <1/2/4/8/16/32> - Set the microstepping mode\n");
+      printf("fwd - Set direction to forward\n");
+      printf("help - Show this help message\n");
+    } else {
+      printf("Invalid command or missing value\n");
+      return;
+    }
+  } else {
+    printf("Invalid command format\n");
+    return;
+  }
 }
 // Function for pin initialization
 void init_stepper_pins() {
@@ -124,7 +172,7 @@ void send_pulse_to_stepperz() {
 }  
 
 // Function to execute a number of steps
-void execute_n_steps(int steps) {
+void execute_n_steps() {
   for (int i = 0; i < steps; i++) {
     switch (axis_selection) {
       case 'x':
@@ -145,7 +193,7 @@ void execute_n_steps(int steps) {
 }
 
 // function to set the direction of the stepper motor
-void set_stepper_direction(bool forward) {
+void set_stepper_direction() {
   // sets direction forward or backward based on user input
   gpio_put(X_DIR, forward); 
   gpio_put(Y_DIR, forward);
@@ -153,7 +201,7 @@ void set_stepper_direction(bool forward) {
 }
 
 // function to set up microstepping mode
-void set_microstepping_mode(int mode) {
+void set_microstepping_mode() {
   switch(mode) {
     case 1: // full step
       gpio_put(X_Mode0, 0);
@@ -229,65 +277,6 @@ int main(void) {
       buffer_index = 0;
       command_complete = false;
     }
-    // obtains user input
-    int c = getchar_timeout_us(0);
-    if (c != PICO_ERROR_TIMEOUT) {
-      switch(c) {
-          case 'f':
-          case 'F':
-          execute_n_steps(1);
-          break;
-          case 'g':
-          case 'G':
-          execute_n_steps(10);
-          break;
-          case 'h':
-          case 'H':
-          execute_n_steps(100);
-          break;
-          case 'j':
-          case 'J':
-          execute_n_steps(200);
-          break;
-          case 'd':
-          case 'D':
-          set_stepper_direction(true);
-          break;
-          case 'a':
-          case 'A':
-          set_stepper_direction(false);
-          break;
-          case '0':
-          set_microstepping_mode(1);
-          break;
-          case '1':
-          set_microstepping_mode(2);
-          break;
-          case '2':
-          set_microstepping_mode(4);
-          break;
-          case '3':
-          set_microstepping_mode(8);
-          break;
-          case '4':
-          set_microstepping_mode(16);
-          break;
-          case '5':
-          set_microstepping_mode(32);
-          break;
-          case 'x':
-          case 'X':
-          case 'y':
-          case 'Y':
-          case 'z':
-          case 'Z':
-          axis_selection = c;
-          printf("Axis selected: %c\n", axis_selection);
-          break;
-          default:
-          printf("Invalid input");
-      }
   }
-}
   return 0;
 }
