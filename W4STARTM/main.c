@@ -25,12 +25,39 @@
   #define Y_Mode1 9
   #define Y_Mode2 10
 
+// delay variables for pulse timing
 int high_delay_us = 1000; // microseconds
 int low_delay_us = 1000; // microseconds
 
 // axis selection variable
 char axis_selection = 'x'; // default to x-axis
+// global variables for buffer
+# define buffer_size 100
+char commend_buffer[buffer_size]; // array to store characters from user input
+int buffer_index = 0; // index to keep track of position in buffer
+bool command_complete = false; // flag to indicate when a command is complete
 
+// function to process user inputs into the buffer array
+void process_input() {
+  int c = getchar_timeout_us(0);
+  if (c != PICO_ERROR_TIMEOUT)
+  return;
+  // when enter is presses
+  if (c == '\n' || c == '\r') {
+    commend_buffer[buffer_index] = '\0'; // creates a C string
+    command_complete = true; // sets flag to indicate command is complete
+    return;
+  }
+    // adds input into buffer
+    if (buffer_index < buffer_size - 1) {
+      commend_buffer[buffer_index++] = c; // adds character to buffer and increments index
+  }
+    // code to handle backspace input
+    if (c == '\b' && buffer_index > 0) {
+      buffer_index--; // moves index back to remove last character
+      commend_buffer[buffer_index] = '\0'; // null-terminate the string after backspace
+  }
+}
 // Function for pin initialization
 void init_stepper_pins() {
   // set the pins to output
@@ -183,6 +210,8 @@ int main(void) {
   init_stepper_pins(); // initalizes pins inside main() with function call
 
   while (true) {
+    // function call to process user input
+    process_input();
     // obtains user input
     int c = getchar_timeout_us(0);
     if (c != PICO_ERROR_TIMEOUT) {
