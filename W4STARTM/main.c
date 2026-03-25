@@ -32,86 +32,123 @@ int low_delay_us = 1000; // microseconds
 
 // axis selection variable
 char axis_selection = 'x'; // default to x-axis
+
 // global variables for buffer
 # define buffer_size 100
 char command_buffer[buffer_size]; // array to store characters from user input
 int buffer_index = 0; // index to keep track of position in buffer
 bool command_complete = false; // flag to indicate when a command is complete
+
 // global variable for mircostepping mode
 int mode = 1; // defaults to full step mode
+
 // glodal variable for number of steps
 int steps = 0; // defaults to 0 steps
+
 // global variable for direction
 bool forward = true; // defaults to forward direction
 
 // function to process user inputs into the buffer array
 void process_input() {
+
   int c = getchar_timeout_us(0);
+
   if (c != PICO_ERROR_TIMEOUT) {
     // process the input character
+
   // when enter is presses
   if (c == '\n' || c == '\r') {
+
     command_buffer[buffer_index] = '\0'; // creates a C string
     command_complete = true; // sets flag to indicate command is complete
     return;
+
   }
+
   // code to handle backspace input
     if (c == '\b' && buffer_index > 0) {
+
       buffer_index--; // moves index back to remove last character
       command_buffer[buffer_index] = '\0'; // null-terminate the string after backspace
+
     }
+
     // adds input into buffer
     if (buffer_index < buffer_size - 1) {
+
       command_buffer[buffer_index++] = c; // adds character to buffer and increments index
-      printf("%c", c); 
-    }
+
+     } else {
+
+      printf("Error: Command buffer overflow. Maximum command length is %d characters.\n", buffer_size - 1);
+      buffer_index = 0; // reset buffer index to prevent overflow
+      command_buffer[0] = '\0'; // clear the 
+      
+     }
   }
 }
+
 void process_commend() {
-  char commend[10]; // array to store the commend
-  int value; // variable to store the value from the commend
+
+  // arrays to store different types of commands
+  char command[10]; 
+  char value_str[10];
+  char integer[10];
+
   // uses sscanf to parse the commend and value from the buffer 
-  int count = sscanf(command_buffer, "%s %d", commend, &value); 
-  printf("Command: %s, Value: %d\n", commend, value); // prints the parsed commend and value for debugging
-  // checks if the commend calue is valid
-  if (value < 0 || value > 1000) {
-    printf("Invalid value: %d. Value must be between 0 and 1000.\n", value);
-    return;
-  }
-  
+  int count = sscanf(command_buffer, "%s %s %s", command, value_str, integer); 
+  printf("Command: %s, Value: %s, integer: %s\n", command, value_str, integer); // prints the parsed commend and value for debugging
+
+
   // checks if the commend is valid and executes the corresponding action
   if (count >= 1) {
-    if (strcmp(commend, "delay") == 0 && count == 2) {
 
-      high_delay_us = value; // sets the high delay to the value from the commend
-      low_delay_us = value; // sets the low delay to the value from the commend
-      printf("Delay set to: %d microseconds\n", value);
+    if (strcmp(command, "delay") == 0 && count == 2) {
 
-    } else if (strcmp(commend, "axis") == 0 && count == 2) {
+      int value = strtol(integer); // converts the string into an integer
 
-      axis_selection = value; // sets the axis selection to the value from the commend
+      // sets the delay for pulse depending on the command
+
+      if (strcmp(value_str, "high") == 0) {
+
+        high_delay_us = value; // sets the high delay to the value from the commend
+        printf("High delay set to: %d microseconds\n", high_delay_us);
+
+      } else if (strcmp(value_str, "low") == 0) {
+
+        low_delay_us = value; // sets the low delay to the value from the commend
+        printf("Low delay set to: %d microseconds\n", low_delay_us);
+
+      } else {
+
+        printf("Invalid delay type. Use 'high' or 'low'.\n");
+      }
+
+    } else if (strcmp(command, "axis") == 0 && count == 2) {
+
+      axis_selection = value_str[0]; // sets the axis selection to the value from the commend
       printf("Axis selected: %c\n", axis_selection);
 
-    } else if (strcmp(commend, "mode") == 0 && count == 2) {
+    } else if (strcmp(command, "mode") == 0 && count == 2) {
 
       mode = value; // sets the mircostepping mode to the value from the commend
       printf("Microstepping mode set to: %d\n", mode);
 
-    } else if (strcmp(commend, "fwd") == 0) {
+    } else if (strcmp(command, "fwd") == 0) {
 
       forward = true; // sets the direction to forward
       printf("Direction set to forward\n");
       steps = value; // sets the number of steps to execute to the value from the commend
       printf("Executed %d steps\n", value);
 
-    } else if (strcmp(commend, "rev") == 0) {
+    } else if (strcmp(command, "rev") == 0) {
 
       forward = false; // sets the direction to reverse
       printf("Direction set to reverse\n");
       steps = value; // sets the number of steps to execute to the value from the commend
       printf("Executed %d steps\n", value);
 
-    } else if (strcmp(commend, "help") == 0) {   
+    } else if (strcmp(command, "help") == 0) {   
 
       printf("Available commands:\n");
       printf("delay <value> - Set the delay for pulse timing in microseconds\n");
@@ -168,7 +205,7 @@ void init_stepper_pins() {
   gpio_set_dir(Z_DIR, GPIO_OUT);
 }
 
-// Function to send pulse signal to stepper motor
+// Functions to send pulse signal to each stepper motor
 void send_pulse_to_stepperx() {
   gpio_put(X_STEP, 1); 
   sleep_us(high_delay_us); 
@@ -285,14 +322,21 @@ int main(void) {
   init_stepper_pins(); // initalizes pins inside main() with function call
 
   while (true) {
+
     // function call to process user input
+
     process_input();
     // checks if command is complete
+
     if (command_complete) {
+
       process_commend(); // function call to process the commend
+
       // reset buffer and index for next command
+      memset(command_buffer, 0, buffer_size); // clear the command buffer
       buffer_index = 0;
       command_complete = false;
+
     }
   }
   return 0;
