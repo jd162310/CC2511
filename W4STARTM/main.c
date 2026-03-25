@@ -45,9 +45,6 @@ int mode = 1; // defaults to full step mode
 // glodal variable for number of steps
 int steps = 0; // defaults to 0 steps
 
-// global variable for direction
-bool forward = true; // defaults to forward direction
-
 // Function for pin initialization
 void init_stepper_pins() {
   // set the pins to output
@@ -125,7 +122,7 @@ void execute_n_steps() {
 }
 
 // function to set the direction of the stepper motor
-void set_stepper_direction() {
+void set_stepper_direction(bool forward) {
   // sets direction forward or backward based on user input
   gpio_put(X_DIR, forward); 
   gpio_put(Y_DIR, forward);
@@ -285,25 +282,29 @@ void process_commend() {
 
     } else if (strcmp(command, "fwd") == 0) {
 
-      forward = true; // sets the direction to forward
+      set_stepper_direction(true); // sets the direction to forward
       printf("Direction set to forward\n");
-      steps = value; // sets the number of steps to execute to the value from the commend
+      value = scanf(value_str, "%d", &value); // converts the value from string to integer
+      execute_n_steps(value); // function call to execute the number of steps from the commend
       printf("Executed %d steps\n", value);
 
     } else if (strcmp(command, "rev") == 0) {
 
-      forward = false; // sets the direction to reverse
+      set_stepper_direction(false); // sets the direction to reverse
       printf("Direction set to reverse\n");
-      steps = value; // sets the number of steps to execute to the value from the commend
+      value = scanf(value_str, "%d", &value); // converts the value from string to integer
+      execute_n_steps(value); // function call to execute the number of steps from the commend
       printf("Executed %d steps\n", value);
 
     } else if (strcmp(command, "help") == 0) {   
 
       printf("Available commands:\n");
-      printf("delay <value> - Set the delay for pulse timing in microseconds\n");
-      printf("axis <x/y/z> - Select the axis to control (x, y, or z)\n");
+      printf("delay high <value> - Set the high delay in microseconds\n");
+      printf("delay low <value> - Set the low delay in microseconds\n");
+      printf("axis <x/y/z> - Select the axis to control\n");
       printf("mode <1/2/4/8/16/32> - Set the microstepping mode\n");
-      printf("fwd - Set direction to forward\n");
+      printf("fwd <steps> - Move forward a specified number of steps\n");
+      printf("rev <steps> - Move reverse a specified number of steps\n");
       printf("help - Show this help message\n");
 
     } else {
