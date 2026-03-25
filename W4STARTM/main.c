@@ -34,7 +34,7 @@ int low_delay_us = 1000; // microseconds
 char axis_selection = 'x'; // default to x-axis
 // global variables for buffer
 # define buffer_size 100
-char commend_buffer[buffer_size]; // array to store characters from user input
+char command_buffer[buffer_size]; // array to store characters from user input
 int buffer_index = 0; // index to keep track of position in buffer
 bool command_complete = false; // flag to indicate when a command is complete
 // global variable for mircostepping mode
@@ -51,19 +51,19 @@ void process_input() {
     // process the input character
   // when enter is presses
   if (c == '\n' || c == '\r') {
-    commend_buffer[buffer_index] = '\0'; // creates a C string
+    command_buffer[buffer_index] = '\0'; // creates a C string
     command_complete = true; // sets flag to indicate command is complete
     return;
   }
-    // adds input into buffer
-    if (buffer_index < buffer_size - 1) {
-      commend_buffer[buffer_index++] = c; // adds character to buffer and increments index
-      printf("%c", c); 
-  }
-    // code to handle backspace input
+  // code to handle backspace input
     if (c == '\b' && buffer_index > 0) {
       buffer_index--; // moves index back to remove last character
-      commend_buffer[buffer_index] = '\0'; // null-terminate the string after backspace
+      command_buffer[buffer_index] = '\0'; // null-terminate the string after backspace
+    }
+    // adds input into buffer
+    if (buffer_index < buffer_size - 1) {
+      command_buffer[buffer_index++] = c; // adds character to buffer and increments index
+      printf("%c", c); 
     }
   }
 }
@@ -71,49 +71,66 @@ void process_commend() {
   char commend[10]; // array to store the commend
   int value; // variable to store the value from the commend
   // uses sscanf to parse the commend and value from the buffer 
-  int count = sscanf(commend_buffer, "%s %d", commend, &value); 
+  int count = sscanf(command_buffer, "%s %d", commend, &value); 
+  printf("Command: %s, Value: %d\n", commend, value); // prints the parsed commend and value for debugging
   // checks if the commend calue is valid
   if (value < 0 || value > 1000) {
     printf("Invalid value: %d. Value must be between 0 and 1000.\n", value);
     return;
   }
-
+  
   // checks if the commend is valid and executes the corresponding action
   if (count >= 1) {
     if (strcmp(commend, "delay") == 0 && count == 2) {
+
       high_delay_us = value; // sets the high delay to the value from the commend
       low_delay_us = value; // sets the low delay to the value from the commend
       printf("Delay set to: %d microseconds\n", value);
+
     } else if (strcmp(commend, "axis") == 0 && count == 2) {
+
       axis_selection = value; // sets the axis selection to the value from the commend
       printf("Axis selected: %c\n", axis_selection);
+
     } else if (strcmp(commend, "mode") == 0 && count == 2) {
+
       mode = value; // sets the mircostepping mode to the value from the commend
       printf("Microstepping mode set to: %d\n", mode);
+
     } else if (strcmp(commend, "fwd") == 0) {
+
       forward = true; // sets the direction to forward
       printf("Direction set to forward\n");
       steps = value; // sets the number of steps to execute to the value from the commend
       printf("Executed %d steps\n", value);
+
     } else if (strcmp(commend, "rev") == 0) {
+
       forward = false; // sets the direction to reverse
       printf("Direction set to reverse\n");
       steps = value; // sets the number of steps to execute to the value from the commend
       printf("Executed %d steps\n", value);
-    } else if (strcmp(commend, "help") == 0) {                             
+
+    } else if (strcmp(commend, "help") == 0) {   
+
       printf("Available commands:\n");
       printf("delay <value> - Set the delay for pulse timing in microseconds\n");
       printf("axis <x/y/z> - Select the axis to control (x, y, or z)\n");
       printf("mode <1/2/4/8/16/32> - Set the microstepping mode\n");
       printf("fwd - Set direction to forward\n");
       printf("help - Show this help message\n");
+
     } else {
+
       printf("Invalid command or missing value\n");
       return;
+
     }
   } else {
+
     printf("Invalid command format\n");
     return;
+
   }
 }
 // Function for pin initialization
