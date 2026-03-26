@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 // global variables
 // Define pins
@@ -202,19 +203,17 @@ void process_input() {
   }
 
   int c = getchar_timeout_us(0);
-
+  
   if (c != PICO_ERROR_TIMEOUT) {
     // process the input character
 
-  // when enter is presses
-  if (c == '\r' || c == '\n') {
+    if (c == '\r' || c == '\n') {
 
     command_buffer[buffer_index] = '\0'; // creates a C string
     command_complete = true; // sets flag to indicate command is complete
     return;
 
   }
-  
   // code to handle backspace input
     if (c == '\b' && buffer_index > 0) {
 
@@ -229,6 +228,7 @@ void process_input() {
 
       command_buffer[buffer_index++] = c; // adds character to buffer and increments index
       printf("%c", c); // echoes the character back to the user
+      printf("[%d]", c); // prints the ASCII value of the character for debugging
 
      } else {
 
@@ -346,8 +346,8 @@ int main(void) {
     // function call to process user input
 
     process_input();
-    // checks if command is complete
 
+    // checks if command is complete
     if (command_complete) {
 
       process_commend(); // function call to process the commend
