@@ -39,6 +39,9 @@ char command_buffer[buffer_size]; // array to store characters from user input
 int buffer_index = 0; // index to keep track of position in buffer
 bool command_complete = false; // flag to indicate when a command is complete
 
+// global variable for direction
+bool forward = true; // defaults to forward direction
+
 // global variable for mircostepping mode
 int mode = 1; // defaults to full step mode
 
@@ -57,7 +60,7 @@ void init_stepper_pins() {
   gpio_set_dir(X_STEP, GPIO_OUT);
   gpio_set_dir(X_DIR, GPIO_OUT);
   gpio_init(X_Mode0);
-  gpio_init(X_Mode1); 
+  gpio_init(X_Mode1);
   gpio_init(X_Mode2);
   gpio_set_dir(X_Mode0, GPIO_OUT);
   gpio_set_dir(X_Mode1, GPIO_OUT);
@@ -68,7 +71,7 @@ void init_stepper_pins() {
   gpio_set_dir(Y_STEP, GPIO_OUT);
   gpio_set_dir(Y_DIR, GPIO_OUT);
   gpio_init(Y_Mode0);
-  gpio_init(Y_Mode1); 
+  gpio_init(Y_Mode1);
   gpio_init(Y_Mode2);
   gpio_set_dir(Y_Mode0, GPIO_OUT);
   gpio_set_dir(Y_Mode1, GPIO_OUT);
@@ -82,8 +85,8 @@ void init_stepper_pins() {
 
 // Functions to send pulse signal to each stepper motor
 void send_pulse_to_stepperx() {
-  gpio_put(X_STEP, 1); 
-  sleep_us(high_delay_us); 
+  gpio_put(X_STEP, 1);
+  sleep_us(high_delay_us);
   gpio_put(X_STEP, 0);
   sleep_us(low_delay_us);
 }
@@ -95,8 +98,8 @@ void send_pulse_to_steppery() {
 }
 void send_pulse_to_stepperz() {
   gpio_put(Z_STEP, 1);
-  sleep_us(high_delay_us); 
-  gpio_put(Z_STEP, 0); 
+  sleep_us(high_delay_us);
+  gpio_put(Z_STEP, 0);
   sleep_us(low_delay_us);
 }  
 
@@ -116,15 +119,15 @@ void execute_n_steps() {
       case 'Z':
         send_pulse_to_stepperz();
         break;
-    } 
-    
+    }
+   
   }
 }
 
 // function to set the direction of the stepper motor
-void set_stepper_direction(bool forward) {
+void set_stepper_direction() {
   // sets direction forward or backward based on user input
-  gpio_put(X_DIR, forward); 
+  gpio_put(X_DIR, forward);
   gpio_put(Y_DIR, forward);
   gpio_put(Z_DIR, forward);
 }
@@ -194,25 +197,30 @@ void set_microstepping_mode() {
 // function to process user inputs into the buffer array
 void process_input() {
 
+  if (command_complete) {
+    return; // if command is already complete, ignore further input until processed
+  }
+
   int c = getchar_timeout_us(0);
 
   if (c != PICO_ERROR_TIMEOUT) {
     // process the input character
 
   // when enter is presses
-  if (c == '\n' || c == '\r') {
+  if (c == '\r' || c == '\n') {
 
     command_buffer[buffer_index] = '\0'; // creates a C string
     command_complete = true; // sets flag to indicate command is complete
     return;
 
   }
-
+  
   // code to handle backspace input
     if (c == '\b' && buffer_index > 0) {
 
       buffer_index--; // moves index back to remove last character
       command_buffer[buffer_index] = '\0'; // null-terminate the string after backspace
+      return;
 
     }
 
@@ -220,13 +228,14 @@ void process_input() {
     if (buffer_index < buffer_size - 1) {
 
       command_buffer[buffer_index++] = c; // adds character to buffer and increments index
+      printf("%c", c); // echoes the character back to the user
 
      } else {
 
       printf("Error: Command buffer overflow. Maximum command length is %d characters.\n", buffer_size - 1);
       buffer_index = 0; // reset buffer index to prevent overflow
-      command_buffer[0] = '\0'; // clear the 
-      
+      command_buffer[0] = '\0'; // clear the
+     
      }
   }
 }
@@ -235,33 +244,32 @@ void process_input() {
 void process_commend() {
 
   // arrays to store different types of commands
-  char command[10]; 
+  char command[10];
   char value_str[10];
-  char integer[10];
-  int value = 0;
+  char integer[10] = {0}; // array to store integer value as string for parsing
 
-  // uses sscanf to parse the commend and value from the buffer 
-  int count = sscanf(command_buffer, "%s %s %s", command, value_str, integer); 
+  // uses sscanf to parse the commend and value from the buffer
+  int count = sscanf(command_buffer, "%s %s %s", command, value_str, integer);
   printf("Command: %s, Value: %s, integer: %s\n", command, value_str, integer); // prints the parsed commend and value for debugging
-
 
   // checks if the commend is valid and executes the corresponding action
   if (count >= 1) {
 
-    if (strcmp(command, "delay") == 0 && count == 2) {
+    if (strcmp(command, "delay") == 0 && count == 3) {
 
-       value = sscanf(value_str, "%d", &value); // converts the value from string to integer
+      int delay_value = 0; // variable to store the delay value
+       sscanf(integer, "%d", &delay_value); // converts the integer value from string to integer
 
       // sets the delay for pulse depending on the command
 
       if (strcmp(value_str, "high") == 0) {
 
-        high_delay_us = value; // sets the high delay to the value from the commend
+        high_delay_us = delay_value; // sets the high delay to the value from the commend
         printf("High delay set to: %d microseconds\n", high_delay_us);
 
       } else if (strcmp(value_str, "low") == 0) {
 
-        low_delay_us = value; // sets the low delay to the value from the commend
+        low_delay_us = delay_value; // sets the low delay to the value from the commend
         printf("Low delay set to: %d microseconds\n", low_delay_us);
 
       } else {
@@ -276,27 +284,29 @@ void process_commend() {
 
     } else if (strcmp(command, "mode") == 0 && count == 2) {
 
-      value = sscanf(value_str, "%d", &value); // converts the value from string to integer
-      set_microstepping_mode(value); // function call to set the microstepping mode
-      printf("Microstepping mode set to: %d\n", value);
+      sscanf(value_str, "%d", &mode); // converts the value from string to integer
+      set_microstepping_mode(); // function call to set the microstepping mode based on the value from the commend
+      printf("Microstepping mode set to: %d\n", mode);
 
-    } else if (strcmp(command, "fwd") == 0) {
+    } else if (strcmp(command, "fwd") == 0 && count == 2) {
 
-      set_stepper_direction(true); // sets the direction to forward
+      forward = true; // sets the direction to forward
+      set_stepper_direction(); // sets the direction to forward
       printf("Direction set to forward\n");
-      value = scanf(value_str, "%d", &value); // converts the value from string to integer
-      execute_n_steps(value); // function call to execute the number of steps from the commend
-      printf("Executed %d steps\n", value);
+      sscanf(value_str, "%d", &steps); // converts the value from string to integer
+      execute_n_steps(); // function call to execute the number of steps from the commend
+      printf("Executed %d steps\n", steps);
 
-    } else if (strcmp(command, "rev") == 0) {
+    } else if (strcmp(command, "rev") == 0 && count == 2) {
 
-      set_stepper_direction(false); // sets the direction to reverse
+      forward = false; // sets the direction to reverse
+      set_stepper_direction(); // sets the direction to reverse
       printf("Direction set to reverse\n");
-      value = scanf(value_str, "%d", &value); // converts the value from string to integer
-      execute_n_steps(value); // function call to execute the number of steps from the commend
-      printf("Executed %d steps\n", value);
+      sscanf(value_str, "%d", &steps); // converts the value from string to integer
+      execute_n_steps(); // function call to execute the number of steps from the commend
+      printf("Executed %d steps\n", steps);
 
-    } else if (strcmp(command, "help") == 0) {   
+    } else if (strcmp(command, "help") == 0) {  
 
       printf("Available commands:\n");
       printf("delay high <value> - Set the high delay in microseconds\n");
@@ -323,9 +333,13 @@ void process_commend() {
 
 int main(void) {
 
-  stdio_init_all(); 
+  stdio_init_all();
+
+  sleep_ms(2000); // delay to allow time for the serial monitor to connect
 
   init_stepper_pins(); // initalizes pins inside main() with function call
+
+  set_microstepping_mode(); // sets the default microstepping mode
 
   while (true) {
 
