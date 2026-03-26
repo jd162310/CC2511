@@ -11,7 +11,7 @@
 #include <stdlib.h>
 
 // global variables
-// Define pins
+// Define axis pins
   #define X_STEP 5
   #define X_DIR 6
   #define Y_STEP 11
@@ -19,6 +19,7 @@
   #define Z_STEP 14
   #define Z_DIR 15
   #define ENABLE 22
+
   // Mode pins for microstepping
   #define X_Mode0 2
   #define X_Mode1 3
@@ -51,10 +52,13 @@ int steps = 0; // defaults to 0 steps
 
 // Function for pin initialization
 void init_stepper_pins() {
+
   // set the pins to output
+  // set enable pin
   gpio_init(ENABLE);
   gpio_set_dir(ENABLE, GPIO_OUT);
   gpio_put(ENABLE, 0);
+
   // X stepper motor pins
   gpio_init(X_STEP);
   gpio_init(X_DIR);
@@ -66,6 +70,7 @@ void init_stepper_pins() {
   gpio_set_dir(X_Mode0, GPIO_OUT);
   gpio_set_dir(X_Mode1, GPIO_OUT);
   gpio_set_dir(X_Mode2, GPIO_OUT);
+
   // y stepper motor pins
   gpio_init(Y_STEP);
   gpio_init(Y_DIR);
@@ -77,36 +82,47 @@ void init_stepper_pins() {
   gpio_set_dir(Y_Mode0, GPIO_OUT);
   gpio_set_dir(Y_Mode1, GPIO_OUT);
   gpio_set_dir(Y_Mode2, GPIO_OUT);
+
   // z stepper motor pins
   gpio_init(Z_STEP);
   gpio_init(Z_DIR);
   gpio_set_dir(Z_STEP, GPIO_OUT);
   gpio_set_dir(Z_DIR, GPIO_OUT);
+
 }
 
-// Functions to send pulse signal to each stepper motor
+// Functions to send pulse signal to each axis stepper motor
 void send_pulse_to_stepperx() {
+
   gpio_put(X_STEP, 1);
   sleep_us(high_delay_us);
   gpio_put(X_STEP, 0);
   sleep_us(low_delay_us);
+
 }
+
 void send_pulse_to_steppery() {
+
   gpio_put(Y_STEP, 1);
   sleep_us(high_delay_us);
   gpio_put(Y_STEP, 0);
   sleep_us(low_delay_us);
+
 }
+
 void send_pulse_to_stepperz() {
   gpio_put(Z_STEP, 1);
   sleep_us(high_delay_us);
   gpio_put(Z_STEP, 0);
   sleep_us(low_delay_us);
+
 }  
 
 // Function to execute a number of steps
 void execute_n_steps() {
+
   for (int i = 0; i < steps; i++) {
+
     switch (axis_selection) {
       case 'x':
       case 'X':
@@ -121,20 +137,22 @@ void execute_n_steps() {
         send_pulse_to_stepperz();
         break;
     }
-   
   }
 }
 
 // function to set the direction of the stepper motor
 void set_stepper_direction() {
+
   // sets direction forward or backward based on user input
   gpio_put(X_DIR, forward);
   gpio_put(Y_DIR, forward);
   gpio_put(Z_DIR, forward);
+
 }
 
 // function to set the microstepping mode based on user input
 void set_microstepping_mode() {
+
   switch(mode) {
     case 1: // full step
       gpio_put(X_Mode0, 0);
@@ -205,8 +223,8 @@ void process_input() {
   int c = getchar_timeout_us(0);
   
   if (c != PICO_ERROR_TIMEOUT) {
-    // process the input character
 
+    // process the input character
     if (c == '\r' || c == '\n') {
 
     command_buffer[buffer_index] = '\0'; // creates a C string
@@ -214,6 +232,7 @@ void process_input() {
     return;
 
   }
+
   // code to handle backspace input
     if (c == '\b' && buffer_index > 0) {
 
@@ -228,7 +247,7 @@ void process_input() {
 
       command_buffer[buffer_index++] = c; // adds character to buffer and increments index
       printf("%c", c); // echoes the character back to the user
-      printf("[%d]", c); // prints the ASCII value of the character for debugging
+      printf("\n"); // moves to the next line after echoing the character
 
      } else {
 
@@ -252,7 +271,7 @@ void process_commend() {
   int count = sscanf(command_buffer, "%s %s %s", command, value_str, integer);
   printf("Command: %s, Value: %s, integer: %s\n", command, value_str, integer); // prints the parsed commend and value for debugging
 
-  // checks if the commend is valid and executes the corresponding action
+  // checks if the commend is valid and executes the corresponding command
   if (count >= 1) {
 
     if (strcmp(command, "delay") == 0 && count == 3) {
@@ -261,7 +280,6 @@ void process_commend() {
        sscanf(integer, "%d", &delay_value); // converts the integer value from string to integer
 
       // sets the delay for pulse depending on the command
-
       if (strcmp(value_str, "high") == 0) {
 
         high_delay_us = delay_value; // sets the high delay to the value from the commend
@@ -335,16 +353,13 @@ int main(void) {
 
   stdio_init_all();
 
-  sleep_ms(2000); // delay to allow time for the serial monitor to connect
-
   init_stepper_pins(); // initalizes pins inside main() with function call
 
-  set_microstepping_mode(); // sets the default microstepping mode
+  printf("enter help for a list of commands\n"); 
 
   while (true) {
 
     // function call to process user input
-
     process_input();
 
     // checks if command is complete
