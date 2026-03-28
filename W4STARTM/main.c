@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "hardware/pwm.h"
+#include "hardware/adc.h"
 
 // global variables
 // Define axis pins
@@ -50,6 +52,11 @@ int mode = 1; // defaults to full step mode
 // glodal variable for number of steps
 int steps = 0; // defaults to 0 steps
 
+// variable for spindle motor control
+# define SPINDLE_PWM_PIN 17
+uint slice_num; // variable to store the PWM slice number for spindle control
+uint16_t spindle_speed = 0; // variable to store the spindle speed as a PWM
+
 // Function for pin initialization
 void init_stepper_pins() {
 
@@ -88,6 +95,17 @@ void init_stepper_pins() {
   gpio_init(Z_DIR);
   gpio_set_dir(Z_STEP, GPIO_OUT);
   gpio_set_dir(Z_DIR, GPIO_OUT);
+
+}
+
+// Function for spindle motor initialization
+void init_spindle_motor() {
+
+  gpio_set_function(SPINDLE_PWM_PIN, GPIO_FUNC_PWM); // set the spindle control pin to PWM function
+  slice_num = pwm_gpio_to_slice_num(SPINDLE_PWM_PIN); // get the PWM slice number for the spindle control pin
+  pwm_set_wrap(slice_num, 65535); // set the PWM wrap value for 16-bit resolution
+  pwm_set_chan_level(slice_num, PWM_CHAN_A, spindle_speed); // set the initial spindle speed to 0
+  pwm_set_enabled(slice_num, true); // enable the PWM output for spindle control
 
 }
 
