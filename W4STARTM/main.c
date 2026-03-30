@@ -354,7 +354,6 @@ void process_commend() {
 
       int speed; 
       sscanf(value_str, "%d", &speed); // stores the user's input as a integer 
-      spindle_speed = (speed * 65535) / 1000;
 
       // error handling for speed inputs
       if (speed < 0 || speed > 1000) {
@@ -364,6 +363,7 @@ void process_commend() {
 
       }
 
+      spindle_speed = (speed * 65535) / 1000; // sets spindle speed
       spindle_control(); // sends pwm signal to spindle
       printf("Set spindle to %d\n", speed); 
 
