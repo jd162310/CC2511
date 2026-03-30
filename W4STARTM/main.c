@@ -101,12 +101,18 @@ void init_stepper_pins() {
 // Function for spindle motor initialization
 void init_spindle_motor() {
 
+  // configuring the pwm signal
+  pwm_config config = pwm_get_default_config();
+  pwm_config_set_clkdiv_mode(&config, PWM_DIV_B_HIGH);
+  pwm_config_set_clkdiv(&config, 100);
+  pwm_init(slice_num, &config, false);
+
+  // spindle control setup
   gpio_set_function(SPINDLE_PWM_PIN, GPIO_FUNC_PWM); // set the spindle control pin to PWM function
   slice_num = pwm_gpio_to_slice_num(SPINDLE_PWM_PIN); // get the PWM slice number for the spindle control pin
   pwm_set_wrap(slice_num, 65535); // set the PWM wrap value for 16-bit resolution
   pwm_set_gpio_level(SPINDLE_PWM_PIN, spindle_speed); // set the initial spindle speed to 0
   pwm_set_enabled(slice_num, true); // enable the PWM output for spindle control
-  pwm_set_clkdiv(slice_num, 4.0); // sets the frequency to a usable rate
 
 }
 
