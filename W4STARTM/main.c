@@ -104,8 +104,9 @@ void init_spindle_motor() {
   gpio_set_function(SPINDLE_PWM_PIN, GPIO_FUNC_PWM); // set the spindle control pin to PWM function
   slice_num = pwm_gpio_to_slice_num(SPINDLE_PWM_PIN); // get the PWM slice number for the spindle control pin
   pwm_set_wrap(slice_num, 65535); // set the PWM wrap value for 16-bit resolution
-  pwm_set_chan_level(slice_num, PWM_CHAN_A, spindle_speed); // set the initial spindle speed to 0
+  pwm_set_gpio_level(SPINDLE_PWM_PIN, spindle_speed); // set the initial spindle speed to 0
   pwm_set_enabled(slice_num, true); // enable the PWM output for spindle control
+  pwm_set_clkdiv(slice_num, 4.0); // sets the frequency to a usable rate
 
 }
 
@@ -349,6 +350,23 @@ void process_commend() {
       execute_n_steps(); // function call to execute the number of steps from the commend
       printf("Executed %d steps\n", steps);
 
+    } else if (strcmp(command, "spin") == 0 && count == 2) {
+
+      int speed; 
+      sscanf(value_str, "%d", &speed); // stores the user's input as a integer 
+      spindle_speed = (speed * 65535) / 1000;
+
+      // error handling for speed inputs
+      if (speed < 0 || speed > 1000) {
+
+        printf("Invalid speed");
+        return;
+
+      }
+
+      spindle_control(); // sends pwm signal to spindle
+      printf("Set spindle to %d\n", speed); 
+
     } else if (strcmp(command, "help") == 0) {  
 
       printf("Available commands:\n");
@@ -358,6 +376,8 @@ void process_commend() {
       printf("mode <1/2/4/8/16/32> - Set the microstepping mode\n");
       printf("fwd <steps> - Move forward a specified number of steps\n");
       printf("rev <steps> - Move reverse a specified number of steps\n");
+      printf("spin <value> - set the spindle speed\n");
+      printf("all values must be between 0-1000");
       printf("help - Show this help message\n");
 
     } else {
