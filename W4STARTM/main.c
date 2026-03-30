@@ -136,6 +136,13 @@ void send_pulse_to_stepperz() {
 
 }  
 
+// Function for spindle motor control
+void spindle_control() {
+
+  // sets spindle speed and sends a pwm signal
+  pwm_set_gpio_level(SPINDLE_PWM_PIN, spindle_speed);
+
+}
 // Function to execute a number of steps
 void execute_n_steps() {
 
@@ -371,7 +378,9 @@ int main(void) {
 
   stdio_init_all();
 
-  init_stepper_pins(); // initalizes pins inside main() with function call
+  // function calls to initalize pins 
+  init_stepper_pins(); 
+  init_spindle_motor();
 
   printf("enter help for a list of commands\n"); 
 
