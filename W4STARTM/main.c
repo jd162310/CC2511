@@ -38,7 +38,7 @@ int low_delay_us = 1000; // microseconds
 char axis_selection = 'x'; // default to x-axis
 
 // global variables for buffer
-# define buffer_size 100
+#define buffer_size 100
 char command_buffer[buffer_size]; // array to store characters from user input
 int buffer_index = 0; // index to keep track of position in buffer
 bool command_complete = false; // flag to indicate when a command is complete
@@ -53,7 +53,7 @@ int mode = 1; // defaults to full step mode
 int steps = 0; // defaults to 0 steps
 
 // variable for spindle motor control
-# define SPINDLE_PWM_PIN 17
+#define SPINDLE_PWM_PIN 17
 uint slice_num; // variable to store the PWM slice number for spindle control
 uint16_t spindle_speed = 0; // variable to store the spindle speed as a PWM
 
@@ -65,7 +65,7 @@ void init_stepper_pins() {
   gpio_init(ENABLE);
   gpio_set_dir(ENABLE, GPIO_OUT);
   gpio_put(ENABLE, 0);
-
+  
   // X stepper motor pins
   gpio_init(X_STEP);
   gpio_init(X_DIR);
@@ -98,21 +98,26 @@ void init_stepper_pins() {
 
 }
 
-// Function for spindle motor initialization
 void init_spindle_motor() {
 
-  // configuring the pwm signal
-  pwm_config config = pwm_get_default_config();
-  pwm_config_set_clkdiv_mode(&config, PWM_DIV_B_HIGH);
-  pwm_config_set_clkdiv(&config, 100);
-  pwm_init(slice_num, &config, false);
+  printf("PWM init starting\n"); // debug help
+  gpio_set_function(SPINDLE_PWM_PIN, GPIO_FUNC_PWM); // sets spindle pin to pwm 
+  printf("Spindle set to %d\n", SPINDLE_PWM_PIN); // debug help
 
-  // spindle control setup
-  gpio_set_function(SPINDLE_PWM_PIN, GPIO_FUNC_PWM); // set the spindle control pin to PWM function
-  slice_num = pwm_gpio_to_slice_num(SPINDLE_PWM_PIN); // get the PWM slice number for the spindle control pin
-  pwm_set_wrap(slice_num, 65535); // set the PWM wrap value for 16-bit resolution
-  pwm_set_gpio_level(SPINDLE_PWM_PIN, spindle_speed); // set the initial spindle speed to 0
-  pwm_set_enabled(slice_num, true); // enable the PWM output for spindle control
+  slice_num = pwm_gpio_to_slice_num(SPINDLE_PWM_PIN); // finds the slice number for the pwm pin
+  printf("Slice num: %d\n", slice_num); // debug help 
+
+  pwm_clear_irq(slice_num); // clears the interrupt flag for the slice 
+
+  pwm_config config = pwm_get_default_config(); // gets defualt PWM configuration
+
+  pwm_config_set_clkdiv(&config, 4.0); // divide clock by 4
+
+  pwm_init(slice_num, &config, true); // applies config and starts PWM
+  printf("PMW init finished\n");
+
+  pwm_set_gpio_level(SPINDLE_PWM_PIN, 0);
+  printf("PWM set to %d\n", SPINDLE_PWM_PIN);
 
 }
 
@@ -146,10 +151,11 @@ void send_pulse_to_stepperz() {
 // Function for spindle motor control
 void spindle_control() {
 
-  // sets spindle speed and sends a pwm signal
+  printf("Applying PWM level: %d on pin %d\n", spindle_speed, SPINDLE_PWM_PIN);
   pwm_set_gpio_level(SPINDLE_PWM_PIN, spindle_speed);
 
 }
+
 // Function to execute a number of steps
 void execute_n_steps() {
 
@@ -278,8 +284,6 @@ void process_input() {
     if (buffer_index < buffer_size - 1) {
 
       command_buffer[buffer_index++] = c; // adds character to buffer and increments index
-      printf("%c", c); // echoes the character back to the user
-      printf("\n"); // moves to the next line after echoing the character
 
      } else {
 
@@ -356,22 +360,27 @@ void process_commend() {
       execute_n_steps(); // function call to execute the number of steps from the commend
       printf("Executed %d steps\n", steps);
 
-    } else if (strcmp(command, "spin") == 0 && count == 2) {
+    } else if (strcmp(command, "spin") == 0 && count == 2) { 
 
-      int speed; 
-      sscanf(value_str, "%d", &speed); // stores the user's input as a integer 
+      printf("RAW INPUT: %s\n", command_buffer);
+      printf("Parsed speed string: %s\n", value_str);
 
+      int speed = 0; // init variable speed
+      sscanf(value_str, "%d", &speed); // saves user input into speed
+      printf("speed is %d\n", speed);
       // error handling for speed inputs
-      if (speed < 0 || speed > 1000) {
+      if (speed < 0 || speed > 100) {
 
-        printf("Invalid speed");
+        printf("inavlid input\n");
         return;
 
       }
 
-      spindle_speed = (speed * 65535) / 1000; // sets spindle speed
-      spindle_control(); // sends pwm signal to spindle
-      printf("Set spindle to %d\n", speed); 
+      // sets the spindle speed to whatever percent the user inputs
+      spindle_speed = (65535 * speed) / 100;
+      printf("spindle speed set to: %d\n", spindle_speed); // debug helper
+      spindle_control(); 
+      printf("spindle speed at %d percent\n", speed);
 
     } else if (strcmp(command, "help") == 0) {  
 
@@ -383,7 +392,7 @@ void process_commend() {
       printf("fwd <steps> - Move forward a specified number of steps\n");
       printf("rev <steps> - Move reverse a specified number of steps\n");
       printf("spin <value> - set the spindle speed\n");
-      printf("all values must be between 0-1000");
+      printf("all values must be between 0-1000 except for spin which is 0-50\n");
       printf("help - Show this help message\n");
 
     } else {
@@ -426,6 +435,6 @@ int main(void) {
       command_complete = false;
 
     }
-  }
+  } 
   return 0;
 }
