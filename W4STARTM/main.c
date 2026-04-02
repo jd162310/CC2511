@@ -54,11 +54,11 @@ uint slice_num; // variable to store the PWM slice number for spindle control
 uint16_t spindle_speed = 0; // variable to store the spindle speed as a PWM
 
 // manual mode variables
-float pos_x = 0, pos_y = 0, pos_z = 0, speed_s = 0; // initalise the x, y, z and spindle variables
-float steps_per_mm = 40; // number of steps before 1 mm is reached
-float step_size = 0.025; // the size of each step
-bool manual_mode = false; // bool variable placeholder for mode change
-float mm = 0;
+float pos_x = 0, pos_y = 0, pos_z = 0; // axis postion variables
+float steps_per_mm = 40; // number of steps per mm of movement
+float step_size = 0.025; // mm for each step
+bool manual_mode = false; // flag to set manual mode on or off
+float mm = 0; // variable to store mm value 
 
 // key state tracking
 bool key_w = false; // Y+
@@ -71,10 +71,7 @@ bool key_o = false; // S+
 bool key_p = false; // S-
 
 // origin variable initialization 
-float x_origin = 0;
-float y_origin = 0;
-float z_origin = 0;
-float s_origin = 0;
+float x_origin = 0, y_origin = 0, z_origin = 0, s_origin = 0; 
 bool origin_set = false; // flag for setting origin
 
 // Function for pin initialization
@@ -294,6 +291,44 @@ void mm_to_steps() {
   return;
 }
   
+
+void execute_manual_movement() {
+  // calculates mm moved
+  float mm_moved = (float)steps / steps_per_mm;
+
+  if (!forward) {
+    mm_moved = -mm_moved; // turns the mm_moved into negative if going backwards
+  }
+
+  // checks which keys are pressed and moves the corresponding axis
+  if (key_w) { // y+
+    axis_selection = 'y';
+    forward = true;
+  } else if (key_s) { // y-
+    axis_selection = 'y';
+    forward = false;
+  } else if (key_d) { // x+
+    axis_selection = 'x';
+    forward = true;
+  } else if (key_a) { // x-
+    axis_selection = 'x';
+    forward = false;
+  } else if (key_e) { // z+
+    axis_selection = 'z';
+    forward = true;
+  } else if (key_q) { // z-
+    axis_selection = 'z';
+    forward = false;
+  } else if (key_p) { // s+
+    // placeholder for spindle speed increase
+    } else if (key_o) { // s-
+      // placeholder as well
+      }
+      
+      set_stepper_direction(); // sets the direction based on key input
+      mm_to_steps(); // converts the mm movemnet into steps
+      execute_n_steps(); // executes the steps to move the motor
+}
   // function to process user inputs into the buffer array
 void process_input() {
 
