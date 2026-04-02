@@ -288,12 +288,6 @@ void mm_to_steps() {
   
 // function to execute movement based on key states
 void execute_manual_movement() {
-  // calculates mm moved
-  float mm_moved = (float)steps / steps_per_mm;
-
-  if (!forward) {
-    mm_moved = -mm_moved; // turns the mm_moved into negative if going backwards
-  }
 
   // checks which keys are pressed and moves the corresponding axis
   if (key_w) { // y+
@@ -316,15 +310,16 @@ void execute_manual_movement() {
     forward = false;
   } else if (key_p) { // s+
     // placeholder for spindle speed increase
-    } else if (key_o) { // s-
-      // placeholder as well
-      }
+  } else if (key_o) { // s-
+    // placeholder as well
+  }
       
-      set_stepper_direction(); // sets the direction based on key input
-      mm_to_steps(); // converts the mm movemnet into steps
-      execute_n_steps(); // executes the steps to move the motor
+    set_stepper_direction(); // sets the direction based on key input
+    mm_to_steps(); // converts the mm movemnet into steps
+    execute_n_steps(); // executes the steps to move the motor
 }
-  // function to process user inputs into the buffer array
+
+// function to process user inputs into the buffer array
 void process_input() {
 
   if (command_complete) {
