@@ -57,8 +57,11 @@ uint16_t spindle_speed = 0; // variable to store the spindle speed as a PWM
 float pos_x = 0, pos_y = 0, pos_z = 0; // axis postion variables
 float steps_per_mm = 40; // number of steps per mm of movement
 float step_size = 0.025; // mm for each step
-bool manual_mode = false; // flag to set manual mode on or off
 float mm = 0; // variable to store mm value 
+
+// flags for different modes
+bool manual_mode = false; // flag to set manual mode on or off
+bool default_mode = true; // flag for default mode
 
 // key state tracking
 bool key_w = false; // Y+
@@ -69,9 +72,12 @@ bool key_q = false; // Z+
 bool key_e = false; // Z-
 bool key_o = false; // S+
 bool key_p = false; // S-
+bool key_l = false; // display position
+bool key_h = false; // set origin
+bool key_r = false; // return to origin
 
 // origin variable initialization 
-float x_origin = 0, y_origin = 0, z_origin = 0, s_origin = 0; 
+float x_origin = 0, y_origin = 0, z_origin = 0;
 bool origin_set = false; // flag for setting origin
 
 // Function for pin initialization
@@ -289,6 +295,11 @@ void mm_to_steps() {
 // function to execute movement based on key states
 void execute_manual_movement() {
 
+  mm = step_size; // sets the mm variable to the step size for each movement
+  if (!forward) {
+    mm = -mm; // turns the mm movement negative if going backwards
+  }
+  
   // checks which keys are pressed and moves the corresponding axis
   if (key_w) { // y+
     axis_selection = 'y';
@@ -312,8 +323,22 @@ void execute_manual_movement() {
     // placeholder for spindle speed increase
   } else if (key_o) { // s-
     // placeholder as well
-  }
-      
+  } else if (key_l) { // display current position
+    printf("Current position - X: %.2f mm, Y: %.2f mm, Z: %.2f mm\n", pos_x, pos_y, pos_z);
+  } else if (key_h) { // sets origin
+    x_origin = pos_x;
+    y_origin = pos_y;
+    z_origin = pos_z;
+    origin_set = true;
+    printf("Origin set to current position - X: %.2f mm, Y: %.2f mm, Z: %.2f mm\n", x_origin, y_origin, z_origin);
+  } else if (key_r) { // returns to origin
+    if (origin_set) {
+      // placeholder for return origin
+    } else {
+      printf("Origin not set. Press the H key to set a origin point.\n");
+    }
+    }
+
     set_stepper_direction(); // sets the direction based on key input
     mm_to_steps(); // converts the mm movemnet into steps
     execute_n_steps(); // executes the steps to move the motor
@@ -329,6 +354,54 @@ void process_input() {
   int c = getchar_timeout_us(0);
   
   if (c != PICO_ERROR_TIMEOUT) {
+
+    // key state tracking for manual mode
+    if (manual_mode) {
+    switch(c) {
+        case 'w': case 'W': 
+        key_w = true;
+        break;
+        case 's': case 'S':
+        key_s = true;
+        break;
+        case 'a': case 'A':
+        key_a = true;
+        break;
+        case 'd': case 'D':
+        key_d = true; 
+        break;
+        case 'o': case 'O':
+        key_o = true;
+        break;
+        case 'p': case 'P':
+        key_p = true;
+        break;
+        case 'q': case 'Q':
+        key_q = true;
+        break;
+        case 'e': case 'E':
+        key_e = true;
+        break;
+        case 'l': case 'L':
+        key_l = true;
+        break;
+        case 'h': case 'H':
+        key_h = true;
+        break;
+        case 'r': case 'R':
+        key_r = true;
+        break;
+        case 'm': case 'M':
+        manual_mode = false;
+        default_mode = true;
+        printf("Exiting manual mode. Returning to default mode.\n");
+        break;
+        default: 
+        // if no input, reset all key states to false to stop movement
+        key_w = key_s = key_a = key_d = key_q = key_e = key_o = key_p = key_l = key_h = key_r = false;
+        break;
+    }
+  }
 
     // process the input character
     if (c == '\r' || c == '\n') {
@@ -376,7 +449,7 @@ void process_commend() {
   printf("Command: %s, Value: %s, integer: %s\n", command, value_str, integer); // prints the parsed commend and value for debugging
 
   // checks if the commend is valid and executes the corresponding command
-  if (count >= 1) {
+  if (count >= 1 && default_mode == true) {
 
     if (strcmp(command, "delay") == 0 && count == 3) {
 
@@ -461,8 +534,20 @@ void process_commend() {
       printf("rev <steps> - Move reverse a specified number of steps\n");
       printf("spin <value> - set the spindle speed\n");
       printf("all values must be between 0-1000 except for spin which is 0-50\n");
+      printf("enter manual to switch to manual mode\n");
       printf("help - Show this help message\n");
 
+    } else if (strcmp(command, "manual") == 0 && count == 1) {
+
+      manual_mode = true; // sets manual mode to true
+      memset(command_buffer, 0, buffer_size); // clear the command buffer
+      buffer_index = 0; // reset the buffer index
+      default_mode = false; // reset the command complete flag
+      printf("Entering manual mode\n");
+      printf("Use W/A/S/D/E/Q for Y, X, and Z axis movement and O/P for spindle speed control.\n");
+      printf("Press L to display current position\n");
+      printf("Press H to set current position as origin and R to return to origin.\n");
+      printf("Press m to exit manual mode and return to default mode.\n");
     } else {
 
       printf("Invalid command or missing value\n");
@@ -492,6 +577,7 @@ int main(void) {
     // function call to process user input
     process_input();
 
+    if (default_mode) {
     // checks if command is complete
     if (command_complete) {
 
@@ -503,6 +589,11 @@ int main(void) {
       command_complete = false;
 
     }
+  } else if (manual_mode) {
+
+    // function call to execute movement based on key states
+    execute_manual_movement();
+  }
   } 
   return 0;
 }
