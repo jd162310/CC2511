@@ -188,22 +188,29 @@ void execute_n_steps() {
   for (int i = 0; i < steps; i++) {
 
     switch (axis_selection) {
-      case 'x':
-      case 'X':
+      case 'x': case 'X':
         send_pulse_to_stepperx();
-        pos_x += mm_moved; // updates the x axis position
         break;
-      case 'y':
-      case 'Y':
+      case 'y': case 'Y':
         send_pulse_to_steppery();
-        pos_y += mm_moved; // updates the y axis position
         break;
-      case 'z':
-      case 'Z':
+      case 'z': case 'Z':
         send_pulse_to_stepperz();
-        pos_z += mm_moved; // updates the z axis position
         break;
     }
+  }
+
+  // updates the position of the axis after movement is complete
+  switch (axis_selection) {
+    case 'x': case 'X':
+      pos_x += mm_moved; // updates the x axis position
+      break;
+    case 'y': case 'Y':
+      pos_y += mm_moved; // updates the y axis position
+      break;
+    case 'z': case 'Z':
+      pos_z += mm_moved; // updates the z axis position
+      break;
   }
 }
 
@@ -283,7 +290,7 @@ void set_microstepping_mode() {
 // converts mm to steps
 void mm_to_steps() {
 
-  steps = (int)(fabs(mm) * steps_per_mm); // converts mm distance into motor steps
+  steps = (int)roundf(fabs(mm) * steps_per_mm); // converts mm distance into motor steps
 
   // sets the steps to 1 if the mm movement is small and gets rounded down to 0
   if (steps == 0 && mm != 0) {
@@ -299,7 +306,7 @@ void execute_manual_movement() {
   if (!forward) {
     mm = -mm; // turns the mm movement negative if going backwards
   }
-  
+
   // checks which keys are pressed and moves the corresponding axis
   if (key_w) { // y+
     axis_selection = 'y';
@@ -332,8 +339,41 @@ void execute_manual_movement() {
     origin_set = true;
     printf("Origin set to current position - X: %.2f mm, Y: %.2f mm, Z: %.2f mm\n", x_origin, y_origin, z_origin);
   } else if (key_r) { // returns to origin
+
     if (origin_set) {
-      // placeholder for return origin
+      
+      // calculates the distance to move back to origin
+      float delta_x = x_origin - pos_x;
+      float delta_y = y_origin -pos_y;
+      float delta_z = z_origin - pos_z;
+
+      // moves back to origin
+      if (delta_x != 0 || delta_y != 0 || delta_z != 0) {
+
+        axis_selection = 'x';
+        forward = (delta_x > 0) ? true : false; // sets direction based on whether delta_x is positive or negative
+        mm = fabs(delta_x); // sets mm to the aboslute value of delta_x for movement
+        mm_to_steps(); // converts mm movement into steps
+        execute_n_steps(); // executes the steps to move the motor
+
+        axis_selection = 'y';
+        forward = (delta_y > 0) ? true : false; // sets direction based on whether delta_y is positive or negative
+        mm = fabs(delta_y); // sets mm to the aboslute value of delta_y for movement
+        mm_to_steps(); // converts mm movement into steps
+        execute_n_steps(); // executes the steps to move the motor
+
+        axis_selection = 'z';
+        forward = (delta_z > 0) ? true : false; // sets direction based on whether delta_z is positive or negative
+        mm = fabs(delta_z); // sets mm to the aboslute value of delta_z for movement
+        mm_to_steps(); // converts mm movement into steps
+        execute_n_steps(); // executes the steps to move the motor
+        
+        // prints the current position after returning to origin
+        printf("Returned to origin - X: %.2f mm, Y: %.2f mm, Z: %.2f mm\n", pos_x, pos_y, pos_z);
+      } else {
+        // if already at origin, just print the current position 
+        printf("Already at origin - X: %.2f mm, Y: %.2f mm, Z: %.2f mm\n", pos_x, pos_y, pos_z);
+      }
     } else {
       printf("Origin not set. Press the H key to set a origin point.\n");
     }
@@ -577,7 +617,13 @@ int main(void) {
     // function call to process user input
     process_input();
 
-    if (default_mode) {
+    if (manual_mode) {
+
+      // function call to execute movement based on key states
+    execute_manual_movement();
+
+  } else {
+
     // checks if command is complete
     if (command_complete) {
 
@@ -589,11 +635,7 @@ int main(void) {
       command_complete = false;
 
     }
-  } else if (manual_mode) {
-
-    // function call to execute movement based on key states
-    execute_manual_movement();
   }
-  } 
+} 
   return 0;
 }
