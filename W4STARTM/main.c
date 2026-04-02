@@ -307,25 +307,24 @@ void execute_manual_movement() {
     mm = -mm; // turns the mm movement negative if going backwards
   }
 
+  bool move = false; // flag to check if any movement is needed
+  if (key_a || key_d || key_w || key_s || key_q || key_e) {
+    move = true; // sets flag to true if any keys are pressed
+  }
+
   // checks which keys are pressed and moves the corresponding axis
   if (key_w) { // y+
     axis_selection = 'y';
-    forward = true;
   } else if (key_s) { // y-
     axis_selection = 'y';
-    forward = false;
   } else if (key_d) { // x+
     axis_selection = 'x';
-    forward = true;
   } else if (key_a) { // x-
     axis_selection = 'x';
-    forward = false;
   } else if (key_e) { // z+
     axis_selection = 'z';
-    forward = true;
   } else if (key_q) { // z-
     axis_selection = 'z';
-    forward = false;
   } else if (key_p) { // s+
     // placeholder for spindle speed increase
   } else if (key_o) { // s-
@@ -367,7 +366,7 @@ void execute_manual_movement() {
         mm = fabs(delta_z); // sets mm to the aboslute value of delta_z for movement
         mm_to_steps(); // converts mm movement into steps
         execute_n_steps(); // executes the steps to move the motor
-        
+
         // prints the current position after returning to origin
         printf("Returned to origin - X: %.2f mm, Y: %.2f mm, Z: %.2f mm\n", pos_x, pos_y, pos_z);
       } else {
@@ -379,15 +378,26 @@ void execute_manual_movement() {
     }
     }
 
-    set_stepper_direction(); // sets the direction based on key input
+    if (move) {
+    // sets the direction based on the movement value
+    forward = (mm >= 0) ? true : false; // sets forward to true if mm is positive and false if mm is negative
+    set_stepper_direction(); // sets the direction with a function call
     mm_to_steps(); // converts the mm movemnet into steps
     execute_n_steps(); // executes the steps to move the motor
+    } 
+
+    // resets key states after movement is executed to stop continuous movement
+    key_w = key_s = key_a = key_d = key_q = key_e = key_o = key_p = key_l = key_h = key_r = false;
+
+    sleep_ms(100); // small delay to prevent multiple inputs from being processed too quickly
+
+
 }
 
 // function to process user inputs into the buffer array
 void process_input() {
 
-  if (command_complete) {
+  if (command_complete && default_mode) {
     return; // if command is already complete, ignore further input until processed
   }
 
@@ -431,17 +441,53 @@ void process_input() {
         case 'r': case 'R':
         key_r = true;
         break;
+        case '1': 
+        step_size = 0.025;
+        mode = 1;
+        set_microstepping_mode();
+        printf("Step size set to 0.025mm: IN NORMAL MODE\n");
+        break;
+        case '2':
+        step_size = 0.0125;
+        mode = 2;
+        set_microstepping_mode();
+        printf("Step size set to 0.0124mm: HALF STEP MODE\n");
+        break;
+        case '3':
+        step_size = 0.00625;
+        mode = 4; 
+        set_microstepping_mode();
+        printf("Step size set to 0.00625mm: QUARTER STEP MODE\n");
+        break;
+        case '4':
+        step_size = 0.003125;
+        mode = 8;
+        set_microstepping_mode();
+        printf("Step size set to 0.003125mm: EIGHTH STEP MODE\n");
+        break;
+        case '5':
+        step_size = 0.0015625;
+        mode = 16;
+        set_microstepping_mode();
+        printf("Step size set to 0.0015625mm: SIXTEENTH STEP MODE\n");
+        break;
+        case '6':
+        step_size = 0.00078125;
+        mode = 32;
+        set_microstepping_mode();
+        printf("Step size set to 0.00078125mm: THIRTY-SECOND STEP MODE\n");
+        break;
         case 'm': case 'M':
         manual_mode = false;
         default_mode = true;
         printf("Exiting manual mode. Returning to default mode.\n");
         break;
         default: 
-        // if no input, reset all key states to false to stop movement
-        key_w = key_s = key_a = key_d = key_q = key_e = key_o = key_p = key_l = key_h = key_r = false;
         break;
     }
   }
+
+  if (default_mode) {
 
     // process the input character
     if (c == '\r' || c == '\n') {
@@ -471,8 +517,8 @@ void process_input() {
       printf("Error: Command buffer overflow. Maximum command length is %d characters.\n", buffer_size - 1);
       buffer_index = 0; // reset buffer index to prevent overflow
       command_buffer[0] = '\0'; // clear the
-     
      }
+    }
   }
 }
 
