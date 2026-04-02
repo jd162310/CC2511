@@ -57,6 +57,29 @@ int steps = 0; // defaults to 0 steps
 uint slice_num; // variable to store the PWM slice number for spindle control
 uint16_t spindle_speed = 0; // variable to store the spindle speed as a PWM
 
+// manual mode variables
+float pos_x = 0, pos_y = 0, pos_z = 0, speed_s = 0; // initalise the x, y, z and spindle variables
+float steps_per_mm = 40; // number of steps before 1 mm is reached
+float step_size = 0.025; // the size of each step
+bool manual_mode = false; // bool variable placeholder for mode change
+
+// key state tracking
+bool key_w = false; // Y+
+bool key_s = false; // Y-
+bool key_a = false; // X-
+bool key_d = false; // X+
+bool key_q = false; // Z+
+bool key_e = false; // Z-
+bool key_o = false; // S+
+bool key_p = false; // S-
+
+// origin variable initialization 
+float x_origin = 0;
+float y_origin = 0;
+float z_origin = 0;
+float s_origin = 0;
+bool origin_set = false; // flag for setting origin
+
 // Function for pin initialization
 void init_stepper_pins() {
 
@@ -160,20 +183,30 @@ void spindle_control() {
 // Function to execute a number of steps
 void execute_n_steps() {
 
+  // calculates mm moved
+  float mm_moved = steps / steps_per_mm;
+
+  if (!forward) {
+    mm_moved = -mm_moved; // turns the mm_moved into negative if going backwards 
+  }
+
   for (int i = 0; i < steps; i++) {
 
     switch (axis_selection) {
       case 'x':
       case 'X':
         send_pulse_to_stepperx();
+        pos_x += mm_moved; // updates the x axis position
         break;
       case 'y':
       case 'Y':
         send_pulse_to_steppery();
+        pos_y += mm_moved; // updates the y axis position
         break;
       case 'z':
       case 'Z':
         send_pulse_to_stepperz();
+        pos_z += mm_moved; // updates the z axis position
         break;
     }
   }
@@ -252,7 +285,13 @@ void set_microstepping_mode() {
   }
 }
 
-// function to process user inputs into the buffer array
+// converts mm to steps
+int mm_to_steps(float mm) {
+
+
+}
+  
+  // function to process user inputs into the buffer array
 void process_input() {
 
   if (command_complete) {
