@@ -317,16 +317,22 @@ void execute_manual_movement() {
   // checks which keys are pressed and moves the corresponding axis
   if (key_w) { // y+
     axis_selection = 'y';
+    forward = true;
   } else if (key_s) { // y-
     axis_selection = 'y';
+    forward = false;
   } else if (key_d) { // x+
     axis_selection = 'x';
+    forward = true;
   } else if (key_a) { // x-
     axis_selection = 'x';
+    forward = false;
   } else if (key_e) { // z+
     axis_selection = 'z';
+    forward = true;
   } else if (key_q) { // z-
     axis_selection = 'z';
+    forward = false;
   } else if (key_p) { // s+
 
     speed += 25; // increases spindle speed by 25 percent
@@ -393,8 +399,6 @@ void execute_manual_movement() {
     }
 
     if (move) {
-    // sets the direction based on the movement value
-    forward = (mm >= 0) ? true : false; // sets forward to true if mm is positive and false if mm is negative
     set_stepper_direction(); // sets the direction with a function call
     mm_to_steps(); // converts the mm movemnet into steps
     execute_n_steps(); // executes the steps to move the motor
@@ -665,6 +669,8 @@ void process_commend() {
 int main(void) {
 
   stdio_init_all();
+
+  sleep_ms(2000); // delay to allow time for serial to connect
 
   // function calls to initalize pins 
   init_stepper_pins(); 
