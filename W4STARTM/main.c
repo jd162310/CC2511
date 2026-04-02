@@ -65,7 +65,7 @@ void init_stepper_pins() {
   gpio_init(ENABLE);
   gpio_set_dir(ENABLE, GPIO_OUT);
   gpio_put(ENABLE, 0);
-  
+
   // X stepper motor pins
   gpio_init(X_STEP);
   gpio_init(X_DIR);
@@ -111,7 +111,8 @@ void init_spindle_motor() {
 
   pwm_config config = pwm_get_default_config(); // gets defualt PWM configuration
 
-  pwm_config_set_clkdiv(&config, 4.0); // divide clock by 4
+  pwm_config_set_clkdiv(&config, 125.0);
+  pwm_config_set_wrap(&config, 65535);
 
   pwm_init(slice_num, &config, true); // applies config and starts PWM
   printf("PMW init finished\n");
