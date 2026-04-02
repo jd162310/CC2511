@@ -117,13 +117,10 @@ void init_stepper_pins() {
 
 void init_spindle_motor() {
 
-  printf("PWM init starting\n"); // debug help
   gpio_set_function(SPINDLE_PWM_PIN, GPIO_FUNC_PWM); // sets spindle pin to pwm 
-  printf("Spindle set to %d\n", SPINDLE_PWM_PIN); // debug help
 
   slice_num = pwm_gpio_to_slice_num(SPINDLE_PWM_PIN); // finds the slice number for the pwm pin
-  printf("Slice num: %d\n", slice_num); // debug help 
-
+  
   pwm_clear_irq(slice_num); // clears the interrupt flag for the slice 
 
   pwm_config config = pwm_get_default_config(); // gets defualt PWM configuration
@@ -132,7 +129,6 @@ void init_spindle_motor() {
   pwm_config_set_wrap(&config, 65535);
 
   pwm_init(slice_num, &config, true); // applies config and starts PWM
-  printf("PMW init finished\n");
 
   pwm_set_gpio_level(SPINDLE_PWM_PIN, 0);
   printf("PWM set to %d\n", SPINDLE_PWM_PIN);
@@ -169,7 +165,6 @@ void send_pulse_to_stepperz() {
 // Function for spindle motor control
 void spindle_control() {
 
-  printf("Applying PWM level: %d on pin %d\n", spindle_speed, SPINDLE_PWM_PIN);
   pwm_set_gpio_level(SPINDLE_PWM_PIN, spindle_speed);
 
 }
@@ -291,7 +286,7 @@ void mm_to_steps() {
   return;
 }
   
-
+// function to execute movement based on key states
 void execute_manual_movement() {
   // calculates mm moved
   float mm_moved = (float)steps / steps_per_mm;
