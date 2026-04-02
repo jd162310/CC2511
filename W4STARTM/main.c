@@ -1,8 +1,3 @@
-/**************************************************************
- * main.c
- * rev 1.0 19-Mar-2026 bjays
- * W4STARTM
- * ***********************************************************/
 
 #include "pico/stdlib.h"
 #include <stdbool.h>
@@ -11,6 +6,7 @@
 #include <stdlib.h>
 #include "hardware/pwm.h"
 #include "hardware/adc.h"
+#include "math.h"
 
 // global variables
 // Define axis pins
@@ -62,6 +58,7 @@ float pos_x = 0, pos_y = 0, pos_z = 0, speed_s = 0; // initalise the x, y, z and
 float steps_per_mm = 40; // number of steps before 1 mm is reached
 float step_size = 0.025; // the size of each step
 bool manual_mode = false; // bool variable placeholder for mode change
+float mm = 0;
 
 // key state tracking
 bool key_w = false; // Y+
@@ -286,9 +283,15 @@ void set_microstepping_mode() {
 }
 
 // converts mm to steps
-int mm_to_steps(float mm) {
+void mm_to_steps() {
 
+  steps = (int)(fabs(mm) * steps_per_mm); // converts mm distance into motor steps
 
+  // sets the steps to 1 if the mm movement is small and gets rounded down to 0
+  if (steps == 0 && mm != 0) {
+    steps = 1;
+  }
+  return;
 }
   
   // function to process user inputs into the buffer array
