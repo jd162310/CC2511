@@ -305,7 +305,7 @@ void mm_to_steps() {
 // G-code interpretor function
 void process_gcode_command(char *gcode_command) {
 
-  int gcode = -1; // variable to store the G-code command number
+  int gcode = 0; // variable to store the G-code command number
   float x = 0, y = 0, z = 0; // variables to store coordinates from G-code command
 
   // uses sscanf to parse the G-code command 
@@ -317,7 +317,33 @@ void process_gcode_command(char *gcode_command) {
 
   printf("Parsed G-code command: G%d, X: %.2f, Y: %.2f, Z: %.2f\n", gcode, x, y, z);
 
-  switch (gcode) {}
+  switch (gcode) {
+    case 0: case 1: // linear move 
+    if (x != 0) {
+      axis_selection = 'x';
+      mm = x - pos_x; // calculates the mm needed to move
+      forward = (mm > 0) ? true : false; // sets direction based on whether mm is positive or negative
+      mm_to_steps(); // converts mm movement into steps
+      set_stepper_direction(); // sets the direction with a function call
+      execute_n_steps(); // executes the steps to move the motor
+    }
+    if (y != 0) {
+      axis_selection = 'y';
+      mm = y - pos_y; // calculates the mm needed to move
+      forward = (mm > 0) ? true : false; // sets direction based on whether mm is positive or negative
+      mm_to_steps(); // converts mm movement into steps
+      set_stepper_direction(); // sets the direction with a function call
+      execute_n_steps(); // executes the steps to move the motor
+    }
+    if (z != 0) {
+      axis_selection = 'z';
+      mm = z - pos_z; // calculates the mm needed to move
+      forward = (mm > 0) ? true : false; // sets direction based on whether mm is positive or negative
+      mm_to_steps(); // converts mm movement into steps
+      set_stepper_direction(); // sets the direction with a function call
+      execute_n_steps(); // executes the steps to move the motor
+    }
+  }
 }
 // function to execute movement based on key states
 void execute_manual_movement() {
