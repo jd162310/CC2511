@@ -80,7 +80,10 @@ bool key_r = false; // return to origin
 float x_origin = 0, y_origin = 0, z_origin = 0;
 bool origin_set = false; // flag for setting origin
 
-// Function for pin initialization
+// G-code variables
+bool absolute_pos = true; // flag for absolute vs relative positioning mode 
+
+//function for pin initialization
 void init_stepper_pins() {
 
   // set the pins to output
@@ -299,6 +302,23 @@ void mm_to_steps() {
   return;
 }
   
+// G-code interpretor function
+void process_gcode_command(char *gcode_command) {
+
+  int gcode = -1; // variable to store the G-code command number
+  float x = 0, y = 0, z = 0; // variables to store coordinates from G-code command
+
+  // uses sscanf to parse the G-code command 
+  sscanf(gcode_command, "G%d", &gcode); // parses the G-code command number
+  // uses sscanf with a format specifier to ignore the other axis when parsing each coordinate
+  sscanf(gcode_command, "[^X]X%f", &x); // parses the x coordinate
+  sscanf(gcode_command, "[^Y]Y%f", &y); // parses the y coordinate
+  sscanf(gcode_command, "[^Z]Z%f", &z); // parses the z coordinate
+
+  printf("Parsed G-code command: G%d, X: %.2f, Y: %.2f, Z: %.2f\n", gcode, x, y, z);
+
+  switch (gcode) {}
+}
 // function to execute movement based on key states
 void execute_manual_movement() {
 
