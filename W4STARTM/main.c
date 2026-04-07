@@ -27,8 +27,7 @@
   #define Y_Mode2 10
 
 // delay variables for pulse timing
-int high_delay_us = 1000; // microseconds
-int low_delay_us = 1000; // microseconds
+int delay = 1000; // mircoseconds
 
 // axis selection variable
 char axis_selection = 'x'; // default to x-axis
@@ -62,6 +61,7 @@ float mm = 0; // variable to store mm value
 // flags for different modes
 bool manual_mode = false; // flag to set manual mode on or off
 bool default_mode = true; // flag for default mode
+bool auto_mode = false; // flag for auto mode
 
 // key state tracking
 bool key_w = false; // Y+
@@ -75,6 +75,8 @@ bool key_p = false; // S-
 bool key_l = false; // display position
 bool key_h = false; // set origin
 bool key_r = false; // return to origin
+bool key_u = false; // unset origin
+
 
 // origin variable initialization 
 float x_origin = 0, y_origin = 0, z_origin = 0;
@@ -140,7 +142,6 @@ void init_spindle_motor() {
   pwm_init(slice_num, &config, true); // applies config and starts PWM
 
   pwm_set_gpio_level(SPINDLE_PWM_PIN, 0);
-  printf("PWM set to %d\n", SPINDLE_PWM_PIN);
 
 }
 
@@ -148,26 +149,26 @@ void init_spindle_motor() {
 void send_pulse_to_stepperx() {
 
   gpio_put(X_STEP, 1);
-  sleep_us(high_delay_us);
+  sleep_us(delay);
   gpio_put(X_STEP, 0);
-  sleep_us(low_delay_us);
+  sleep_us(delay);
 
 }
 
 void send_pulse_to_steppery() {
 
   gpio_put(Y_STEP, 1);
-  sleep_us(high_delay_us);
+  sleep_us(delay);
   gpio_put(Y_STEP, 0);
-  sleep_us(low_delay_us);
+  sleep_us(delay);
 
 }
 
 void send_pulse_to_stepperz() {
   gpio_put(Z_STEP, 1);
-  sleep_us(high_delay_us);
+  sleep_us(delay);
   gpio_put(Z_STEP, 0);
-  sleep_us(low_delay_us);
+  sleep_us(delay);
 
 }  
 
@@ -238,7 +239,6 @@ void set_microstepping_mode() {
       gpio_put(Y_Mode0, 0);
       gpio_put(Y_Mode1, 0);
       gpio_put(Y_Mode2, 0);
-      printf("Mode set: %d\n", mode);
       break;
     case 2: // half step
       gpio_put(X_Mode0, 1);
@@ -247,7 +247,6 @@ void set_microstepping_mode() {
       gpio_put(Y_Mode0, 1);
       gpio_put(Y_Mode1, 0);
       gpio_put(Y_Mode2, 0);
-      printf("Mode set: %d\n", mode);
       break;
     case 4: // quarter step
       gpio_put(X_Mode0, 0);
@@ -256,7 +255,6 @@ void set_microstepping_mode() {
       gpio_put(Y_Mode0, 0);
       gpio_put(Y_Mode1, 1);
       gpio_put(Y_Mode2, 0);
-      printf("Mode set: %d\n", mode);
       break;
     case 8: // eighth step
       gpio_put(X_Mode0, 1);
@@ -265,7 +263,6 @@ void set_microstepping_mode() {
       gpio_put(Y_Mode0, 1);
       gpio_put(Y_Mode1, 1);
       gpio_put(Y_Mode2, 0);
-      printf("Mode set: %d\n", mode);
       break;
     case 16: // sixteenth step
       gpio_put(X_Mode0, 1);
@@ -274,7 +271,6 @@ void set_microstepping_mode() {
       gpio_put(Y_Mode0, 1);
       gpio_put(Y_Mode1, 1);
       gpio_put(Y_Mode2, 1);
-      printf("Mode set: %d\n", mode);
       break;
     case 32: // thirty-second step
       gpio_put(X_Mode0, 1);
@@ -283,7 +279,6 @@ void set_microstepping_mode() {
       gpio_put(Y_Mode0, 1);
       gpio_put(Y_Mode1, 0);
       gpio_put(Y_Mode2, 1);
-      printf("Mode set: %d\n", mode);
       break;    
       default:
       printf("Invalid microstepping mode");
@@ -302,98 +297,135 @@ void mm_to_steps() {
   return;
 }
   
+// function to move x and y axis simultaneously
+void move_xy(float mm_x, float mm_y) {
+
+  // calculates the number of steps needed
+    int steps_x = (int)(fabs(mm_x) * steps_per_mm);
+    int steps_y = (int)(fabs(mm_y) * steps_per_mm);
+    if (steps_x == 0 && steps_y == 0) return; // if no movement is needed, return
+
+    // set directions for x and y axis
+    gpio_put(X_DIR, mm_x > 0);
+    gpio_put(Y_DIR, mm_y > 0);
+
+    int max_steps = steps_x > steps_y ? steps_x : steps_y; // finds the maximum number of steps needed for either axis
+
+    for (int i = 0; i < max_steps; i++) {
+      if (i < steps_x) {
+        gpio_put(X_STEP, 1);
+        sleep_ms(500);
+        gpio_put(X_STEP, 0);
+      }
+      if (i < steps_y) {
+        gpio_put(Y_STEP, 1);
+        sleep_ms(500);
+        gpio_put(Y_STEP, 0);
+      }
+      sleep_ms(500);
+    }
+    pos_x += mm_x; // updates the x axis position
+    pos_y += mm_y; // updates the y axis position
+}
+
 // G-code interpretor function
-void process_gcode_command(char *gcode_command) {
+void process_gcode_command(char *gcode_line) {
 
-  int g = 0, m = 0; // variable to store the G-code command number
-  float x = 0, y = 0, z = 0, f = 0; // variables to store G-code commands
+  char cmd[10];
+  char *ptr = gcode_line;
+  int i = 0;
+  float x = 0, y = 0, z = 0, f =0, s = 0;
 
-  // uses sscanf to parse the G-code command 
-  sscanf(gcode_command, "G%d", &g); // parses the G-code command number
-  sscanf(gcode_command, "M%d", &m); // parses the M-code command number
-  // uses sscanf with a format specifier to ignore the other inputs so order is irrelevant
-  sscanf(gcode_command, "[^X]X%f", &x); // parses the x coordinate
-  sscanf(gcode_command, "[^Y]Y%f", &y); // parses the y coordinate
-  sscanf(gcode_command, "[^Z]Z%f", &z); // parses the z coordinate
-  sscanf(gcode_command, "[^F]F%f", &f); // parses the feedrate
+  // parses the command from the gcode line
+  while (*ptr && *ptr != ' ' && i < 9) {
+    cmd[i++] = *ptr++;
+  }
 
-  printf("Parsed G-code command: G%d, M-code command: M%d X: %.2f, Y: %.2f, Z: %.2f\n, feedrate: %.2f", g, m, x, y, z, f); // debug help
+  cmd[i] = '\0'; // null-terminate the command string
+  ptr = gcode_line; // resets pointer to the start of the line
 
-  switch (g) {
-    case 0: // rapid move - moves at max speed
+  // parses the command parameters
+  while (*ptr) {
+    if (*ptr == 'x' || *ptr == 'X') {
+      x = atof(ptr + 1); // converts the x value from string to float
+    }
+    if (*ptr == 'y' || *ptr == 'Y') {
+      y = atof(ptr + 1); // converts the y value from string to float
+    }
+    if (*ptr == 'z' || *ptr == 'Z') {
+      z = atof(ptr + 1); // converts the z value from string to float
+    }
+    if (*ptr == 'f' || *ptr == 'F') {
+      f = atof(ptr + 1); // converts the freedrate value from string to float
+    }
+    if (*ptr == 's' || *ptr == 'S') {
+      s = atof(ptr + 1); // converts the spindle speed value from string to float
+    }
+    ptr++; // moves pointer to the next character
+  }
 
-    case 1: // linear move 
+  // processes the G-code command and executes
+  // checks whether the feedrate is valid
+  if (f > 0) {
+    delay = (int)(200000 / f); // calculates the delay based on the feedrate
+    if (delay < 100) delay = 100; // sets the minimum delay to prevent going too fast
+    if (delay > 2000) delay = 2000; // sets the maximum delay to prevent going too slow
+  }
+  if (strcmp(cmd, "G0") == 0 || strcmp(cmd, "G00") == 0) { // rapid move control
     if (x != 0) {
       axis_selection = 'x';
-      mm = x - pos_x; // calculates the mm needed to move
-      forward = (mm > 0) ? true : false; // sets direction based on whether mm is positive or negative
+      forward = (x > 0); // sets direction based on whether x is positive or negative
+      mm = fabs(x); // sets mm to the aboslute value of x for movement
       mm_to_steps(); // converts mm movement into steps
-      set_stepper_direction(); // sets the direction with a function call
-      execute_n_steps(); // executes the steps to move the motor
+      set_stepper_direction(); // sets the direction 
+      execute_n_steps(); // executes the steps
     }
     if (y != 0) {
       axis_selection = 'y';
-      mm = y - pos_y; // calculates the mm needed to move
-      forward = (mm > 0) ? true : false; // sets direction based on whether mm is positive or negative
+      forward = (y > 0); // sets direction based on whether y is positive or negative
+      mm = fabs(y); // sets mm to the aboslute value of y for movement
       mm_to_steps(); // converts mm movement into steps
-      set_stepper_direction(); // sets the direction with a function call
-      execute_n_steps(); // executes the steps to move the motor
+      set_stepper_direction(); // sets the direction 
+      execute_n_steps(); // executes the steps
     }
     if (z != 0) {
       axis_selection = 'z';
-      mm = z - pos_z; // calculates the mm needed to move
-      forward = (mm > 0) ? true : false; // sets direction based on whether mm is positive or negative
+      forward = (z > 0); // sets direction based on whether z is positive or negative
+      mm = fabs(z); // sets mm to the aboslute value of z for movement
       mm_to_steps(); // converts mm movement into steps
-      set_stepper_direction(); // sets the direction with a function call
-      execute_n_steps(); // executes the steps to move the motor
+      set_stepper_direction(); // sets the direction 
+      execute_n_steps(); // executes the steps
+    } 
+    else if (strcmp(cmd, "G01") == 0 || strcmp(cmd, "G1") == 0) { // linear move control
+
+    if (x != 0 || y != 0) {
+      move_xy(x, y); // function call to move in the xy plane simultaneously
     }
-    printf("Completed movement - Current position - X: %.2f mm, Y: %.2f mm, Z: %.2f mm\n", pos_x, pos_y, pos_z);
-    break;
-    case 28: // return to origin
-    printf("Returning to origin\n");
+    if (z != 0) {
+      axis_selection = 'z';
+      forward = (z > 0); // sets direction based on whether z is positive or negative
+      mm = fabs(z); // sets mm to the aboslute value of z for movement
+      mm_to_steps(); // converts mm movement into steps
+      set_stepper_direction(); // sets the direction
+      execute_n_steps(); // executes the steps
+    }
+  } 
+  else if (strcmp(cmd, "M03") == 0 || strcmp(cmd, "M3") == 0) { // spindle on control
 
-    // calculates the distance to move back to origin
-      float delta_x = x_origin - pos_x;
-      float delta_y = y_origin -pos_y;
-      float delta_z = z_origin - pos_z;
-
-      // moves back to origin
-      if (delta_x != 0 || delta_y != 0 || delta_z != 0) {
-
-        axis_selection = 'x';
-        forward = (delta_x > 0) ? true : false; // sets direction based on whether delta_x is positive or negative
-        mm = fabs(delta_x); // sets mm to the aboslute value of delta_x for movement
-        mm_to_steps(); // converts mm movement into steps
-        execute_n_steps(); // executes the steps to move the motor
-
-        axis_selection = 'y';
-        forward = (delta_y > 0) ? true : false; // sets direction based on whether delta_y is positive or negative
-        mm = fabs(delta_y); // sets mm to the aboslute value of delta_y for movement
-        mm_to_steps(); // converts mm movement into steps
-        execute_n_steps(); // executes the steps to move the motor
-
-        axis_selection = 'z';
-        forward = (delta_z > 0) ? true : false; // sets direction based on whether delta_z is positive or negative
-        mm = fabs(delta_z); // sets mm to the aboslute value of delta_z for movement
-        mm_to_steps(); // converts mm movement into steps
-        execute_n_steps(); // executes the steps to move the motor
-      }
-        // prints the current position after returning to origin
-        printf("Returned to origin - X: %.2f mm, Y: %.2f mm, Z: %.2f mm\n", pos_x, pos_y, pos_z);
-      break;
-    case 90: // absolute positioning mode
-    absolute_pos = true;
-    printf("In absolute positioning mode\n");
-    break;
-    case 91: // relative positioning mode
-    absolute_pos = false;
-    printf("In relative positioning mode\n");
-    break;
-    default:
-    printf("Unsupported G-code command\n");
-    break;
+      int speed = (int)((s * 65535) / 100); // converts the spindle speed from percentage to PWM value
+      if (speed < 0) speed = 0; // caps the speed from going negative
+      if (speed > 65535) speed = 65535; // caps the speed at maximum PWM value
+      spindle_speed = speed; // sets the spindle speed variable
+      spindle_control(); // function call to update spindle speed
   }
+  else if (strcmp(cmd, "M05") == 0 || strcmp(cmd, "M5") == 0) { // spindle off control
+
+      spindle_speed = 0; // sets spindle speed to 0 (turns off)
+      spindle_control(); // function call to update spindle speed
+  }
+ }
 }
+
 // function to execute movement based on key states
 void execute_manual_movement() {
 
@@ -437,20 +469,20 @@ void execute_manual_movement() {
   } else if (key_p) { // s+
 
     speed += 25; // increases spindle speed by 25 percent
-    if (speed > 100) 
+    if (speed > 100) {
     speed = 100; // caps the speed at 100 percent
+    }
     spindle_speed = (speed * 65535) / 100; // sets spindle speed using percentage
     spindle_control(); // function call to update spindle speed 
-    printf("Spindle speed at %d percent\n", speed);
 
   } else if (key_o) { // s-
 
     speed -= 25; // decreases spindle speed by 25 percent
-    if (speed < 0) 
+    if (speed < 0) {
     speed = 0; // caps the speed from going negative
+    }
     spindle_speed = (speed * 65535) / 100; // sets spindle speed using percentage
     spindle_control(); // function call to update spindle speed 
-    printf("Spindle speed at %d percent\n", speed);
 
   } else if (key_l) { // display current position
     printf("Current position - X: %.2f mm, Y: %.2f mm, Z: %.2f mm\n", pos_x, pos_y, pos_z);
@@ -600,6 +632,7 @@ void process_input() {
         case 'm': case 'M':
         manual_mode = false;
         default_mode = true;
+        delay = 1000; // resets delay to default
         printf("Exiting manual mode. Returning to default mode.\n");
         break;
         default: 
@@ -670,13 +703,13 @@ void process_commend() {
       // sets the delay for pulse depending on the command
       if (strcmp(value_str, "high") == 0) {
 
-        high_delay_us = delay_value; // sets the high delay to the value from the commend
-        printf("High delay set to: %d microseconds\n", high_delay_us);
+        delay = delay_value; // sets the high delay to the value from the commend
+        printf("High delay set to: %d microseconds\n", delay);
 
       } else if (strcmp(value_str, "low") == 0) {
 
-        low_delay_us = delay_value; // sets the low delay to the value from the commend
-        printf("Low delay set to: %d microseconds\n", low_delay_us);
+        delay = delay_value; // sets the low delay to the value from the commend
+        printf("Low delay set to: %d microseconds\n", delay);
 
       } else {
 
@@ -754,6 +787,7 @@ void process_commend() {
       memset(command_buffer, 0, buffer_size); // clear the command buffer
       buffer_index = 0; // reset the buffer index
       default_mode = false; // reset the command complete flag
+      delay = 400; // set delay to a fast speed for smooth movement
       printf("Entering manual mode\n");
       printf("Use W/A/S/D/E/Q for Y, X, and Z axis movement and O/P for spindle speed control.\n");
       printf("Press L to display current position\n");
