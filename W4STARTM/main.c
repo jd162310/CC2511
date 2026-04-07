@@ -305,20 +305,24 @@ void mm_to_steps() {
 // G-code interpretor function
 void process_gcode_command(char *gcode_command) {
 
-  int gcode = 0; // variable to store the G-code command number
-  float x = 0, y = 0, z = 0; // variables to store coordinates from G-code command
+  int g = 0, m = 0; // variable to store the G-code command number
+  float x = 0, y = 0, z = 0, f = 0; // variables to store G-code commands
 
   // uses sscanf to parse the G-code command 
-  sscanf(gcode_command, "G%d", &gcode); // parses the G-code command number
-  // uses sscanf with a format specifier to ignore the other axis when parsing each coordinate
+  sscanf(gcode_command, "G%d", &g); // parses the G-code command number
+  sscanf(gcode_command, "M%d", &m); // parses the M-code command number
+  // uses sscanf with a format specifier to ignore the other inputs so order is irrelevant
   sscanf(gcode_command, "[^X]X%f", &x); // parses the x coordinate
   sscanf(gcode_command, "[^Y]Y%f", &y); // parses the y coordinate
   sscanf(gcode_command, "[^Z]Z%f", &z); // parses the z coordinate
+  sscanf(gcode_command, "[^F]F%f", &f); // parses the feedrate
 
-  printf("Parsed G-code command: G%d, X: %.2f, Y: %.2f, Z: %.2f\n", gcode, x, y, z);
+  printf("Parsed G-code command: G%d, M-code command: M%d X: %.2f, Y: %.2f, Z: %.2f\n, feedrate: %.2f", g, m, x, y, z, f); // debug help
 
-  switch (gcode) {
-    case 0: case 1: // linear move 
+  switch (g) {
+    case 0: // rapid move - moves at max speed
+
+    case 1: // linear move 
     if (x != 0) {
       axis_selection = 'x';
       mm = x - pos_x; // calculates the mm needed to move
@@ -343,6 +347,51 @@ void process_gcode_command(char *gcode_command) {
       set_stepper_direction(); // sets the direction with a function call
       execute_n_steps(); // executes the steps to move the motor
     }
+    printf("Completed movement - Current position - X: %.2f mm, Y: %.2f mm, Z: %.2f mm\n", pos_x, pos_y, pos_z);
+    break;
+    case 28: // return to origin
+    printf("Returning to origin\n");
+
+    // calculates the distance to move back to origin
+      float delta_x = x_origin - pos_x;
+      float delta_y = y_origin -pos_y;
+      float delta_z = z_origin - pos_z;
+
+      // moves back to origin
+      if (delta_x != 0 || delta_y != 0 || delta_z != 0) {
+
+        axis_selection = 'x';
+        forward = (delta_x > 0) ? true : false; // sets direction based on whether delta_x is positive or negative
+        mm = fabs(delta_x); // sets mm to the aboslute value of delta_x for movement
+        mm_to_steps(); // converts mm movement into steps
+        execute_n_steps(); // executes the steps to move the motor
+
+        axis_selection = 'y';
+        forward = (delta_y > 0) ? true : false; // sets direction based on whether delta_y is positive or negative
+        mm = fabs(delta_y); // sets mm to the aboslute value of delta_y for movement
+        mm_to_steps(); // converts mm movement into steps
+        execute_n_steps(); // executes the steps to move the motor
+
+        axis_selection = 'z';
+        forward = (delta_z > 0) ? true : false; // sets direction based on whether delta_z is positive or negative
+        mm = fabs(delta_z); // sets mm to the aboslute value of delta_z for movement
+        mm_to_steps(); // converts mm movement into steps
+        execute_n_steps(); // executes the steps to move the motor
+      }
+        // prints the current position after returning to origin
+        printf("Returned to origin - X: %.2f mm, Y: %.2f mm, Z: %.2f mm\n", pos_x, pos_y, pos_z);
+      break;
+    case 90: // absolute positioning mode
+    absolute_pos = true;
+    printf("In absolute positioning mode\n");
+    break;
+    case 91: // relative positioning mode
+    absolute_pos = false;
+    printf("In relative positioning mode\n");
+    break;
+    default:
+    printf("Unsupported G-code command\n");
+    break;
   }
 }
 // function to execute movement based on key states
@@ -462,7 +511,6 @@ void execute_manual_movement() {
     key_w = key_s = key_a = key_d = key_q = key_e = key_o = key_p = key_l = key_h = key_r = false;
 
     sleep_ms(100); // small delay to prevent multiple inputs from being processed too quickly
-
 
 }
 
@@ -597,6 +645,11 @@ void process_input() {
 // function to process and execute the command from the buffer
 void process_commend() {
 
+  // checks if the command is a G-code or M-code command and prcocesses accoedinly
+  if (command_buffer[0] == 'G' || command_buffer[0] == 'g' || command_buffer[0] == 'M' || command_buffer[0] == 'm') {
+    process_gcode_command(command_buffer); // function call to process G-code command
+    return;
+  } else {
   // arrays to store different types of commands
   char command[10];
   char value_str[10];
@@ -716,11 +769,11 @@ void process_commend() {
 
     printf("Invalid command format\n");
     return;
-
   }
 }
+}
 
-int main(void) {
+int main(void) { 
 
   stdio_init_all();
 
