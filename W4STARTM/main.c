@@ -328,6 +328,138 @@ void move_xy(float mm_x, float mm_y) {
     pos_y += mm_y; // updates the y axis position
 }
 
+// function to draw a arc based on G-code command
+void draw_arc(float end_x, float end_y, float i, float j, int clockwise) {
+
+  // calculates the center of the arc
+  float centre_x = pos_x + i;
+  float centre_y = pos_y + j;
+  float radius = sqrt(i*i + j*j);
+
+  // calculates the start and end angles in radians
+  float start_angle = atan2(pos_y - centre_y, pos_x - centre_x);
+  float end_angle = atan2(end_y - centre_y, end_x - centre_x);
+  
+  // number of steps for smooth arc
+  int steps = (int)(roundf(radius * fabs(end_angle - start_angle) * steps_per_mm)); // calculates steps based on arc length
+
+  // variables to keep track of current angle and position
+  float current_angle, angle_step, dx, dy;
+  
+  // executes the arc movement by incrementing the angle and calculating the corresponding x and y steps
+  if (clockwise) {
+
+    if (start_angle < end_angle) {
+      start_angle += 2 * M_PI; // adjusts the start angle to start from the correct position for clockwise movement
+    }
+    angle_step = (start_angle - end_angle) / steps; // calculates the angle to increment for each step
+    current_angle = start_angle; // initializes the current angle to the start angle
+
+    // loops through the number of steps
+    for (int step = 0; step < steps; step++) {
+      current_angle -= angle_step; // decrements the angle for clockwise movement 
+      float x = centre_x + radius * cos(current_angle); // calculates the x position for current angle
+      float y = centre_y + radius * sin(current_angle); // calculates the y position for current angle
+
+      // calculates the mm to move for the step
+      dx = x - pos_x;
+      dy = y - pos_y; 
+
+      if (dx != 0) {
+        axis_selection = 'x';
+        forward = (dx > 0);
+        mm = fabs(dx);
+        mm_to_steps();
+        set_stepper_direction();
+        execute_n_steps();
+      }
+      if (dy != 0) {
+        axis_selection = 'y';
+        forward = (dy > 0);
+        mm = fabs(dy);
+        mm_to_steps();
+        set_stepper_direction();
+        execute_n_steps();
+       }
+    }
+  } else { // if anit-clockwise
+    if (start_angle >= end_angle) {
+      end_angle = end_angle + 2 * M_PI;
+    }
+    angle_step = (end_angle - start_angle) / steps;
+    current_angle = start_angle;
+    for (int step = 0; step < steps; step++) {
+      current_angle += angle_step;
+      float x = centre_x + radius * cos(current_angle);
+      float y = centre_y + radius * sin(current_angle);
+
+      //calculate the mm to move for this step
+      dx = x - pos_x;
+      dy = y - pos_y;
+
+      if (dx != 0) {
+        axis_selection = 'x';
+        forward = (dx > 0);
+        mm = fabs(dx);
+        mm_to_steps();
+        set_stepper_direction();
+        execute_n_steps();
+      }
+      if (dy != 0) {
+        axis_selection = 'y';
+        forward = (dy > 0);
+        mm = fabs(dy);
+        mm_to_steps();
+        set_stepper_direction();
+        execute_n_steps();
+       }
+      }
+  }
+
+  // final exact movement to end point
+  dx = end_x - pos_x;
+  dy = end_y - pos_y; 
+  
+  if (dx != 0) {
+        axis_selection = 'x';
+        forward = (dx > 0);
+        mm = fabs(dx);
+        mm_to_steps();
+        set_stepper_direction();
+        execute_n_steps();
+      }
+      if (dy != 0) {
+        axis_selection = 'y';
+        forward = (dy > 0);
+        mm = fabs(dy);
+        mm_to_steps();
+        set_stepper_direction();
+        execute_n_steps();
+       }
+  // final exact move to end point
+  dx = end_x - pos_x;
+  dy = end_y - pos_y;
+
+  if (dx != 0) {
+    axis_selection = 'x';
+    forward = (dx > 0);
+    mm = fabs(dx);
+    mm_to_steps();
+    set_stepper_direction();
+    execute_n_steps();
+  }
+  if (dy != 0) {
+    axis_selection = 'y';
+    forward = (dy > 0);
+    mm = fabs(dy);
+    mm_to_steps();
+    set_stepper_direction();
+    execute_n_steps();
+  }
+  pos_x = end_x;
+  pos_y = end_y;
+}
+
 // G-code interpretor function
 void process_gcode_command(char *gcode_line) {
 
@@ -486,12 +618,17 @@ void execute_manual_movement() {
 
   } else if (key_l) { // display current position
     printf("Current position - X: %.2f mm, Y: %.2f mm, Z: %.2f mm\n", pos_x, pos_y, pos_z);
+  } else if (key_u) { // unset origin
+
+    origin_set = false;
+
   } else if (key_h) { // sets origin
+
     x_origin = pos_x;
     y_origin = pos_y;
     z_origin = pos_z;
     origin_set = true;
-    printf("Origin set to current position - X: %.2f mm, Y: %.2f mm, Z: %.2f mm\n", x_origin, y_origin, z_origin);
+    
   } else if (key_r) { // returns to origin
 
     if (origin_set) {
@@ -521,17 +658,9 @@ void execute_manual_movement() {
         mm = fabs(delta_z); // sets mm to the aboslute value of delta_z for movement
         mm_to_steps(); // converts mm movement into steps
         execute_n_steps(); // executes the steps to move the motor
-
-        // prints the current position after returning to origin
-        printf("Returned to origin - X: %.2f mm, Y: %.2f mm, Z: %.2f mm\n", pos_x, pos_y, pos_z);
-      } else {
-        // if already at origin, just print the current position 
-        printf("Already at origin - X: %.2f mm, Y: %.2f mm, Z: %.2f mm\n", pos_x, pos_y, pos_z);
       }
-    } else {
-      printf("Origin not set. Press the H key to set a origin point.\n");
     }
-    }
+  }
 
     if (move) {
     set_stepper_direction(); // sets the direction with a function call
@@ -542,8 +671,7 @@ void execute_manual_movement() {
     // resets key states after movement is executed to stop continuous movement
     key_w = key_s = key_a = key_d = key_q = key_e = key_o = key_p = key_l = key_h = key_r = false;
 
-    sleep_ms(100); // small delay to prevent multiple inputs from being processed too quickly
-
+    sleep_ms(100); // small delay to prevent multiple inputs from being processed too quickly}
 }
 
 // function to process user inputs into the buffer array
