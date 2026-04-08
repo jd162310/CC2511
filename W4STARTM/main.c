@@ -725,43 +725,36 @@ void process_input() {
         step_size = 0.025;
         mode = 1;
         set_microstepping_mode();
-        printf("Step size set to 0.025mm: IN NORMAL MODE\n");
         break;
         case '2':
         step_size = 0.0125;
         mode = 2;
         set_microstepping_mode();
-        printf("Step size set to 0.0124mm: HALF STEP MODE\n");
         break;
         case '3':
         step_size = 0.00625;
         mode = 4; 
         set_microstepping_mode();
-        printf("Step size set to 0.00625mm: QUARTER STEP MODE\n");
         break;
         case '4':
         step_size = 0.003125;
         mode = 8;
         set_microstepping_mode();
-        printf("Step size set to 0.003125mm: EIGHTH STEP MODE\n");
         break;
         case '5':
         step_size = 0.0015625;
         mode = 16;
         set_microstepping_mode();
-        printf("Step size set to 0.0015625mm: SIXTEENTH STEP MODE\n");
         break;
         case '6':
         step_size = 0.00078125;
         mode = 32;
         set_microstepping_mode();
-        printf("Step size set to 0.00078125mm: THIRTY-SECOND STEP MODE\n");
         break;
         case 'm': case 'M':
         manual_mode = false;
         default_mode = true;
         delay = 1000; // resets delay to default
-        printf("Exiting manual mode. Returning to default mode.\n");
         break;
         default: 
         break;
@@ -795,9 +788,8 @@ void process_input() {
 
      } else {
 
-      printf("Error: Command buffer overflow. Maximum command length is %d characters.\n", buffer_size - 1);
       buffer_index = 0; // reset buffer index to prevent overflow
-      command_buffer[0] = '\0'; // clear the
+      command_buffer[0] = '\0'; // clear the buffer
      }
     }
   }
@@ -807,10 +799,14 @@ void process_input() {
 void process_commend() {
 
   // checks if the command is a G-code or M-code command and prcocesses accoedinly
-  if (command_buffer[0] == 'G' || command_buffer[0] == 'g' || command_buffer[0] == 'M' || command_buffer[0] == 'm') {
+  if (command_buffer[0] == 'G' || command_buffer[0] == 'g') {
     process_gcode_command(command_buffer); // function call to process G-code command
     return;
-  } else {
+  } else if (command_buffer[0] == 'M' || command_buffer[0] == 'm' && command_buffer[1] != 'a') {
+    process_gcode_command(command_buffer); // function call to process M code for spindle
+    return;
+} else {
+
   // arrays to store different types of commands
   char command[10];
   char value_str[10];
@@ -818,85 +814,60 @@ void process_commend() {
 
   // uses sscanf to parse the commend and value from the buffer
   int count = sscanf(command_buffer, "%s %s %s", command, value_str, integer);
-  printf("Command: %s, Value: %s, integer: %s\n", command, value_str, integer); // prints the parsed commend and value for debugging
 
   // checks if the commend is valid and executes the corresponding command
   if (count >= 1 && default_mode == true) {
 
-    if (strcmp(command, "delay") == 0 && count == 3) {
+    if (strcmp(command, "delay") == 0 && count == 2) {
 
       int delay_value = 0; // variable to store the delay value
-       sscanf(integer, "%d", &delay_value); // converts the integer value from string to integer
+       sscanf(value_str, "%d", &delay_value); // converts the integer value from string to integer
 
-      // sets the delay for pulse depending on the command
-      if (strcmp(value_str, "high") == 0) {
+       delay = delay_value; // sets the delay to user input
 
-        delay = delay_value; // sets the high delay to the value from the commend
-        printf("High delay set to: %d microseconds\n", delay);
-
-      } else if (strcmp(value_str, "low") == 0) {
-
-        delay = delay_value; // sets the low delay to the value from the commend
-        printf("Low delay set to: %d microseconds\n", delay);
-
-      } else {
-
-        printf("Invalid delay type. Use 'high' or 'low'.\n");
       }
 
     } else if (strcmp(command, "axis") == 0 && count == 2) {
 
       axis_selection = value_str[0]; // sets the axis selection to the value from the commend
-      printf("Axis selected: %c\n", axis_selection);
 
     } else if (strcmp(command, "mode") == 0 && count == 2) {
 
       sscanf(value_str, "%d", &mode); // converts the value from string to integer
       set_microstepping_mode(); // function call to set the microstepping mode based on the value from the commend
-      printf("Microstepping mode set to: %d\n", mode);
 
     } else if (strcmp(command, "fwd") == 0 && count == 2) {
 
       forward = true; // sets the direction to forward
       set_stepper_direction(); // sets the direction to forward
-      printf("Direction set to forward\n");
       sscanf(value_str, "%d", &steps); // converts the value from string to integer
       execute_n_steps(); // function call to execute the number of steps from the commend
-      printf("Executed %d steps\n", steps);
 
     } else if (strcmp(command, "rev") == 0 && count == 2) {
 
       forward = false; // sets the direction to reverse
       set_stepper_direction(); // sets the direction to reverse
-      printf("Direction set to reverse\n");
       sscanf(value_str, "%d", &steps); // converts the value from string to integer
       execute_n_steps(); // function call to execute the number of steps from the commend
-      printf("Executed %d steps\n", steps);
 
     } else if (strcmp(command, "spin") == 0 && count == 2) { 
 
-      printf("RAW INPUT: %s\n", command_buffer);
-      printf("Parsed speed string: %s\n", value_str);
-
       int speed = 0; // init variable speed
       sscanf(value_str, "%d", &speed); // saves user input into speed
-      printf("speed is %d\n", speed);
+      
       // error handling for speed inputs
       if (speed < 0 || speed > 100) {
 
-        printf("inavlid input\n");
         return;
 
       }
 
-      // sets the spindle speed to whatever percent the user inputs
+      // sets the spindle speed to user input percentage
       spindle_speed = (65535 * speed) / 100;
-      printf("spindle speed set to: %d\n", spindle_speed); // debug helper
       spindle_control(); 
-      printf("spindle speed at %d percent\n", speed);
 
     } else if (strcmp(command, "help") == 0) {  
-
+     /////////////////////// REMOVE ONCE GUI HAS HELP OPTIONS
       printf("Available commands:\n");
       printf("delay high <value> - Set the high delay in microseconds\n");
       printf("delay low <value> - Set the low delay in microseconds\n");
@@ -916,24 +887,14 @@ void process_commend() {
       buffer_index = 0; // reset the buffer index
       default_mode = false; // reset the command complete flag
       delay = 400; // set delay to a fast speed for smooth movement
-      printf("Entering manual mode\n");
-      printf("Use W/A/S/D/E/Q for Y, X, and Z axis movement and O/P for spindle speed control.\n");
-      printf("Press L to display current position\n");
-      printf("Press H to set current position as origin and R to return to origin.\n");
-      printf("Press m to exit manual mode and return to default mode.\n");
-    } else {
-
-      printf("Invalid command or missing value\n");
-      return;
-
-    }
+  
   } else {
 
-    printf("Invalid command format\n");
     return;
   }
 }
 }
+
 
 int main(void) { 
 
