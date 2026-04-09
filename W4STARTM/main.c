@@ -51,6 +51,7 @@ int steps = 0; // defaults to 0 steps
 #define SPINDLE_PWM_PIN 17
 uint slice_num; // variable to store the PWM slice number for spindle control
 uint16_t spindle_speed = 0; // variable to store the spindle speed as a PWM
+int speed = 0; // variable to store the spindle speed
 
 // manual mode variables
 float pos_x = 0, pos_y = 0, pos_z = 0; // axis postion variables
@@ -528,7 +529,7 @@ void process_gcode_command(char *gcode_line) {
       set_stepper_direction(); // sets the direction 
       execute_n_steps(); // executes the steps
     } 
-    else if (strcmp(cmd, "G01") == 0 || strcmp(cmd, "G1") == 0) { // linear move control
+  } else if (strcmp(cmd, "G01") == 0 || strcmp(cmd, "G1") == 0) { // linear move control
 
     if (x != 0 || y != 0) {
       move_xy(x, y); // function call to move in the xy plane simultaneously
@@ -541,8 +542,7 @@ void process_gcode_command(char *gcode_line) {
       set_stepper_direction(); // sets the direction
       execute_n_steps(); // executes the steps
     }
-  } 
-  else if (strcmp(cmd, "M03") == 0 || strcmp(cmd, "M3") == 0) { // spindle on control
+  } else if (strcmp(cmd, "M03") == 0 || strcmp(cmd, "M3") == 0) { // spindle on control
 
       int speed = (int)((s * 65535) / 100); // converts the spindle speed from percentage to PWM value
       if (speed < 0) speed = 0; // caps the speed from going negative
@@ -555,7 +555,6 @@ void process_gcode_command(char *gcode_line) {
       spindle_speed = 0; // sets spindle speed to 0 (turns off)
       spindle_control(); // function call to update spindle speed
   }
- }
 }
 
 // function to execute movement based on key states
@@ -570,8 +569,6 @@ void execute_manual_movement() {
   if (key_a || key_d || key_w || key_s || key_q || key_e) {
     move = true; // sets flag to true if any keys are pressed
   }
-
-  int speed = 0; // variable to store the spindle speed
 
   // checks which keys are pressed and moves the corresponding axis
   if (key_w) { // y+
@@ -663,15 +660,13 @@ void execute_manual_movement() {
   }
 
     if (move) {
-    set_stepper_direction(); // sets the direction with a function call
-    mm_to_steps(); // converts the mm movemnet into steps
-    execute_n_steps(); // executes the steps to move the motor
+      mm = 1.5;
+    set_stepper_direction(); // sets the direction 
+    mm_to_steps(); // converts the mm to steps
+    execute_n_steps(); // executes the steps
     } 
 
-    // resets key states after movement is executed to stop continuous movement
-    key_w = key_s = key_a = key_d = key_q = key_e = key_o = key_p = key_l = key_h = key_r = false;
-
-    sleep_ms(100); // small delay to prevent multiple inputs from being processed too quickly}
+    sleep_ms(100); // small delay to prevent multiple inputs from being processed too quickly
 }
 
 // function to process user inputs into the buffer array
@@ -688,7 +683,7 @@ void process_input() {
     // key state tracking for manual mode
     if (manual_mode) {
     switch(c) {
-        case 'w': case 'W': 
+        case 'w': case 'W':
         key_w = true;
         break;
         case 's': case 'S':
@@ -698,7 +693,7 @@ void process_input() {
         key_a = true;
         break;
         case 'd': case 'D':
-        key_d = true; 
+        key_d = true;
         break;
         case 'o': case 'O':
         key_o = true;
@@ -721,48 +716,63 @@ void process_input() {
         case 'r': case 'R':
         key_r = true;
         break;
-        case '1': 
+        case 'u': case 'U':
+        key_u = true;
+        break;
+        case '1':
         step_size = 0.025;
         mode = 1;
         set_microstepping_mode();
+        printf("Step size set to 0.025mm: IN NORMAL MODE\n");
         break;
         case '2':
         step_size = 0.0125;
         mode = 2;
         set_microstepping_mode();
+        printf("Step size set to 0.0124mm: HALF STEP MODE\n");
         break;
         case '3':
         step_size = 0.00625;
-        mode = 4; 
+        mode = 4;
         set_microstepping_mode();
+        printf("Step size set to 0.00625mm: QUARTER STEP MODE\n");
         break;
         case '4':
         step_size = 0.003125;
         mode = 8;
         set_microstepping_mode();
+        printf("Step size set to 0.003125mm: EIGHTH STEP MODE\n");
         break;
         case '5':
         step_size = 0.0015625;
         mode = 16;
         set_microstepping_mode();
+        printf("Step size set to 0.0015625mm: SIXTEENTH STEP MODE\n");
         break;
         case '6':
         step_size = 0.00078125;
         mode = 32;
         set_microstepping_mode();
+        printf("Step size set to 0.00078125mm: THIRTY-SECOND STEP MODE\n");
+        break;
+        case '7':
+        step_size = 1.5;
+        printf("regular mode\n");
+        break;
+        case '8':
+        step_size = 3.0;
+        printf("fast mode\n");
         break;
         case 'm': case 'M':
         manual_mode = false;
         default_mode = true;
-        delay = 1000; // resets delay to default
+        printf("Exiting manual mode. Returning to default mode.\n");
         break;
-        default: 
+        default:
         break;
-    }
+    } 
   }
-
   if (default_mode) {
-
     // process the input character
     if (c == '\r' || c == '\n') {
 
@@ -793,16 +803,21 @@ void process_input() {
      }
     }
   }
+  if (manual_mode && getchar_timeout_us(0) == PICO_ERROR_TIMEOUT) {
+    // resets key states 
+        key_w = key_s = key_a = key_d = key_q = key_e = key_o = key_p = key_l = key_h = key_r = false;
+  }
 }
 
+
 // function to process and execute the command from the buffer
-void process_commend() {
+void process_command() {
 
   // checks if the command is a G-code or M-code command and prcocesses accoedinly
   if (command_buffer[0] == 'G' || command_buffer[0] == 'g') {
     process_gcode_command(command_buffer); // function call to process G-code command
     return;
-  } else if (command_buffer[0] == 'M' || command_buffer[0] == 'm' && command_buffer[1] != 'a') {
+  } else if ((command_buffer[0] == 'M' || command_buffer[0] == 'm') && command_buffer[1] != 'a') {
     process_gcode_command(command_buffer); // function call to process M code for spindle
     return;
 } else {
@@ -824,8 +839,6 @@ void process_commend() {
        sscanf(value_str, "%d", &delay_value); // converts the integer value from string to integer
 
        delay = delay_value; // sets the delay to user input
-
-      }
 
     } else if (strcmp(command, "axis") == 0 && count == 2) {
 
@@ -852,7 +865,6 @@ void process_commend() {
 
     } else if (strcmp(command, "spin") == 0 && count == 2) { 
 
-      int speed = 0; // init variable speed
       sscanf(value_str, "%d", &speed); // saves user input into speed
       
       // error handling for speed inputs
@@ -892,9 +904,9 @@ void process_commend() {
 
     return;
   }
+ }
 }
 }
-
 
 int main(void) { 
 
@@ -905,17 +917,15 @@ int main(void) {
   // function calls to initalize pins 
   init_stepper_pins(); 
   init_spindle_motor();
-
-  printf("enter help for a list of commands\n"); 
-
+ 
   while (true) {
 
     // function call to process user input
-    process_input();
+      process_input();
 
     if (manual_mode) {
 
-      // function call to execute movement based on key states
+    // function call to execute movement based on key states
     execute_manual_movement();
 
   } else {
@@ -923,7 +933,7 @@ int main(void) {
     // checks if command is complete
     if (command_complete) {
 
-      process_commend(); // function call to process the commend
+      process_command(); // function call to process the commend
 
       // reset buffer and index for next command
       memset(command_buffer, 0, buffer_size); // clear the command buffer
