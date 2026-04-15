@@ -491,7 +491,7 @@ void process_input() {
       switch(c) {
         case '1': step_size = 0.5; printf("Step size set to 0.5mm: IN PRECISE MODE\n"); break;
         case '2': step_size = 1; printf("Step size set to 1mm: IN NORMAL MODE\n"); break;
-        case '3': step_size = 0.6; printf("Step size set to 0.6mm: IN FAST MODE\n"); break;
+        case '3': step_size = 1.5; printf("Step size set to 1.5mm: IN FAST MODE\n"); break;
         case 'w': case 'W': key_w = true; break;
         case 's': case 'S': key_s = true; break;
         case 'a': case 'A': key_a = true; break;
@@ -680,7 +680,7 @@ void process_command() {
       printf("Press H to set current position as origin and R to return to origin.\n");
       printf("Press m to exit manual mode and return to default mode.\n");
 
-    } else if (strcmp(command, "LC") == 0 && count == 1) {
+    } else if (strcmp(command, "L") == 0 && count == 1) {
       printf("Current position - X: %.2f mm, Y: %.2f mm, Z: %.2f mm\n", pos_x, pos_y, pos_z);
 
     } else if (strcmp(command, "setorigin") == 0 && count == 1) {
@@ -719,7 +719,7 @@ void process_command() {
       spindle_speed = (65535 * speed) / 100;
       spindle_control(); 
 
-      } else if (strcmp(command, "gcode") == 0) {
+      } else if (strcmp(command, "G") == 0) {
       // send raw g-code
       char *gcode_line = command_buffer + 6; // skip "gcode"
      
